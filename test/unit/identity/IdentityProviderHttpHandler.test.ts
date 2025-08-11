@@ -9,7 +9,7 @@ import type { Interaction, InteractionHandler } from '../../../src/identity/inte
 import type { HttpRequest } from '../../../src/server/HttpRequest';
 import type { HttpResponse } from '../../../src/server/HttpResponse';
 import { SOLID_HTTP } from '../../../src/util/Vocabularies';
-import type Provider from '../../../templates/types/oidc-provider';
+import type Provider from 'oidc-provider';
 
 describe('An IdentityProviderHttpHandler', (): void => {
   const cookie = 'cookie';

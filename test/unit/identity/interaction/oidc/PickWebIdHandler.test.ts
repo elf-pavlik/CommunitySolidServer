@@ -4,7 +4,7 @@ import { PickWebIdHandler } from '../../../../../src/identity/interaction/oidc/P
 import type { WebIdStore } from '../../../../../src/identity/interaction/webid/util/WebIdStore';
 import { BadRequestHttpError } from '../../../../../src/util/errors/BadRequestHttpError';
 import { FoundHttpError } from '../../../../../src/util/errors/FoundHttpError';
-import type Provider from '../../../../../templates/types/oidc-provider';
+import type Provider from '../oidc-provider';
 
 describe('A PickWebIdHandler', (): void => {
   const accountId = 'accountId';

@@ -14,7 +14,7 @@ import type { AdapterFactory } from '../../../../src/identity/storage/AdapterFac
 import type { KeyValueStorage } from '../../../../src/storage/keyvalue/KeyValueStorage';
 import { extractErrorTerms } from '../../../../src/util/errors/HttpErrorUtil';
 import { OAuthHttpError } from '../../../../src/util/errors/OAuthHttpError';
-import type { Configuration, errors, KoaContextWithOIDC } from '../../../../templates/types/oidc-provider';
+import type { Configuration, errors, KoaContextWithOIDC } from 'oidc-provider';
 
 jest.mock('oidc-provider', (): any => {
   const fn = jest.fn((issuer: string, config: Configuration): any => ({ issuer, config, use: jest.fn() }));

@@ -11,8 +11,8 @@ import type {
   KoaContextWithOIDC,
   ResourceServer,
   UnknownObject,
-} from '../../../templates/types/oidc-provider';
-import type Provider from '../../../templates/types/oidc-provider';
+} from 'oidc-provider';
+import type Provider from 'oidc-provider';
 import type { ErrorHandler } from '../../http/output/error/ErrorHandler';
 import type { ResponseWriter } from '../../http/output/ResponseWriter';
 import type { KeyValueStorage } from '../../storage/keyvalue/KeyValueStorage';

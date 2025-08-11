@@ -2,7 +2,7 @@ import type { ProviderFactory } from '../../../src/identity/configuration/Provid
 import { OidcHttpHandler } from '../../../src/identity/OidcHttpHandler';
 import type { HttpRequest } from '../../../src/server/HttpRequest';
 import type { HttpResponse } from '../../../src/server/HttpResponse';
-import type Provider from '../../../templates/types/oidc-provider';
+import type Provider from 'oidc-provider';
 
 describe('An OidcHttpHandler', (): void => {
   const request: HttpRequest = {

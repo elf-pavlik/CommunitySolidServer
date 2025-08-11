@@ -2,7 +2,7 @@ import type { ProviderFactory } from '../../../../../src/identity/configuration/
 import type { Interaction } from '../../../../../src/identity/interaction/InteractionHandler';
 import { ClientInfoHandler } from '../../../../../src/identity/interaction/oidc/ClientInfoHandler';
 import { BadRequestHttpError } from '../../../../../src/util/errors/BadRequestHttpError';
-import type Provider from '../../../../../templates/types/oidc-provider';
+import type Provider from '../oidc-provider';
 
 describe('A ClientInfoHandler', (): void => {
   let oidcInteraction: Interaction;

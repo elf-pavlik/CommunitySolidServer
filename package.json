@@ -17,7 +17,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "community-solid-server": "bin/server.js"
+    "community-solid-server": "bin/server.cjs"
   },
   "files": [
     "bin",
@@ -42,7 +42,7 @@
   "scripts": {
     "build": "npm run build:ts && npm run build:components",
     "build:components": "componentsjs-generator -s src -c dist/components -r css -i .componentsignore",
-    "build:ts": "tsc",
+    "build:ts": "unbuild",
     "mkdocs": "npm run mkdocs:docker || npm run mkdocs:pip",
     "mkdocs:docker": "docker run --rm -it -p 8000:8000 -v ${PWD}/documentation:/docs squidfunk/mkdocs-material",
     "mkdocs:pip": "pip install mkdocs mkdocs-material && cd documentation && mkdocs serve",
@@ -59,9 +59,9 @@
     "prepare": "npm run build",
     "release": "commit-and-tag-version",
     "postrelease": "ts-node ./scripts/finalizeRelease.ts",
-    "start": "node ./bin/server.js",
-    "start:file": "node ./bin/server.js -c config/file.json -f ./.data",
-    "start:file-root": "node ./bin/server.js -c config/file-root.json -f ./.data",
+    "start": "node ./bin/server.cjs",
+    "start:file": "node ./bin/server.cjs -c config/file.json -f ./.data",
+    "start:file-root": "node ./bin/server.cjs -c config/file-root.json -f ./.data",
     "test": "npm run test:ts && npm run jest",
     "test:deploy": "test/deploy/validate-configs.sh",
     "test:ts": "tsc -p test --noEmit",
@@ -90,7 +90,7 @@
     "@types/n3": "^1.21.1",
     "@types/node": "^18.18.4",
     "@types/nodemailer": "^6.4.11",
-    "@types/oidc-provider": "^8.4.0",
+    "@types/oidc-provider": "^9.1.2",
     "@types/proper-lockfile": "^4.1.2",
     "@types/pump": "^1.1.1",
     "@types/punycode": "^2.1.0",
@@ -123,7 +123,7 @@
     "mime-types": "^3.0.1",
     "n3": "^1.23.1",
     "nodemailer": "^7.0.2",
-    "oidc-provider": "^8.4.0",
+    "oidc-provider": "^9.4.1",
     "proper-lockfile": "^4.1.2",
     "pump": "^3.0.0",
     "punycode": "^2.3.0",
@@ -167,8 +167,9 @@
     "supertest": "^7.0.0",
     "ts-jest": "^29.1.1",
     "ts-node": "^10.9.2",
-    "typedoc": "^0.26.4",
-    "typescript": "^5.5.3"
+    "typedoc": "^0.28.10",
+    "typescript": "^5.9.2",
+    "unbuild": "^3.6.0"
   },
   "husky": {
     "hooks": {

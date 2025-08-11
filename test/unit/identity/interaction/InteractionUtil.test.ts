@@ -6,7 +6,7 @@ import {
   forgetWebId,
 } from '../../../../src/identity/interaction/InteractionUtil';
 import { BadRequestHttpError } from '../../../../src/util/errors/BadRequestHttpError';
-import type Provider from '../../../../templates/types/oidc-provider';
+import type Provider from 'oidc-provider';
 
 jest.useFakeTimers();
 jest.setSystemTime();

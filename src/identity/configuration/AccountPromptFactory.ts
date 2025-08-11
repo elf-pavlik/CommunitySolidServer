@@ -1,5 +1,5 @@
 import { getLoggerFor } from 'global-logger-factory';
-import type { interactionPolicy, KoaContextWithOIDC } from '../../../templates/types/oidc-provider';
+import type { interactionPolicy, KoaContextWithOIDC } from 'oidc-provider';
 import { InternalServerError } from '../../util/errors/InternalServerError';
 import { importOidcProvider } from '../IdentityUtil';
 import type { CookieStore } from '../interaction/account/util/CookieStore';

@@ -3,7 +3,8 @@
   "compilerOptions": {
     "incremental": true,
     "lib": [ "es2021" ],
-    "moduleResolution": "node16",
+    "module": "preserve",
+    "moduleResolution": "bundler",
     "declaration": true,
     "inlineSources": true,
     "newLine": "lf",
