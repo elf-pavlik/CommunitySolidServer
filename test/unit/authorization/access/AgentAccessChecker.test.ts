@@ -2,7 +2,7 @@ import { DataFactory, Store } from 'n3';
 import type { AccessCheckerArgs } from '../../../../src/authorization/access/AccessChecker';
 import { AgentAccessChecker } from '../../../../src/authorization/access/AgentAccessChecker';
 import { ACL } from '../../../../src/util/Vocabularies';
-import namedNode = DataFactory.namedNode;
+const { namedNode } = DataFactory;
 
 describe('A AgentAccessChecker', (): void => {
   const webId = 'http://test.com/alice/profile/card#me';

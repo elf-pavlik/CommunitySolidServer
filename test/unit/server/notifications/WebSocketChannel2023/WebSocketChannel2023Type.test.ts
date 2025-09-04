@@ -14,9 +14,9 @@ import {
   WebSocketChannel2023Type,
 } from '../../../../../src/server/notifications/WebSocketChannel2023/WebSocketChannel2023Type';
 import { NOTIFY, RDF } from '../../../../../src/util/Vocabularies';
-import quad = DataFactory.quad;
-import blankNode = DataFactory.blankNode;
-import namedNode = DataFactory.namedNode;
+const { quad } = DataFactory;
+const { blankNode } = DataFactory;
+const { namedNode } = DataFactory;
 
 jest.mock('uuid', (): any => ({ v4: (): string => '4c9b88c1-7502-4107-bb79-2a3a590c7aa3' }));
 

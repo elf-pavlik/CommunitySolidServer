@@ -46,7 +46,7 @@ import {
 import type { DataAccessor } from './accessors/DataAccessor';
 import type { Conditions } from './conditions/Conditions';
 import type { ChangeMap, ResourceStore } from './ResourceStore';
-import namedNode = DataFactory.namedNode;
+const { namedNode } = DataFactory;
 
 /**
  * ResourceStore which uses a DataAccessor for backend access.

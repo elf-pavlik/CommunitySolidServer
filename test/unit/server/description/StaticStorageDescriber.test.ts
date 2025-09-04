@@ -3,8 +3,8 @@ import { DataFactory } from 'n3';
 import type { ResourceIdentifier } from '../../../../src/http/representation/ResourceIdentifier';
 import { StaticStorageDescriber } from '../../../../src/server/description/StaticStorageDescriber';
 import { LDP, PIM, RDF } from '../../../../src/util/Vocabularies';
-import quad = DataFactory.quad;
-import namedNode = DataFactory.namedNode;
+const { quad } = DataFactory;
+const { namedNode } = DataFactory;
 
 describe('A StaticStorageDescriber', (): void => {
   const target: ResourceIdentifier = { path: 'http://example.com/foo' };

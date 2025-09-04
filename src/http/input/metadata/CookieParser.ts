@@ -5,7 +5,7 @@ import type { HttpRequest } from '../../../server/HttpRequest';
 import { SOLID_META } from '../../../util/Vocabularies';
 import type { RepresentationMetadata } from '../../representation/RepresentationMetadata';
 import { MetadataParser } from './MetadataParser';
-import namedNode = DataFactory.namedNode;
+const { namedNode } = DataFactory;
 
 /**
  * Parses the cookie header and stores their values as metadata.

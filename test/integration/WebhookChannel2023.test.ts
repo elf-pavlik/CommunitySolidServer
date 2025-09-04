@@ -19,7 +19,7 @@ import {
   instantiateFromConfig,
   removeFolder,
 } from './Config';
-import quad = DataFactory.quad;
+const { quad } = DataFactory;
 
 const port = getPort('WebhookChannel2023');
 const baseUrl = `http://localhost:${port}/`;

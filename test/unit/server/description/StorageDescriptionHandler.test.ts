@@ -10,8 +10,8 @@ import type { HttpResponse } from '../../../../src/server/HttpResponse';
 import type { ResourceStore } from '../../../../src/storage/ResourceStore';
 import { readableToQuads } from '../../../../src/util/StreamUtil';
 import { PIM, RDF } from '../../../../src/util/Vocabularies';
-import quad = DataFactory.quad;
-import namedNode = DataFactory.namedNode;
+const { quad } = DataFactory;
+const { namedNode } = DataFactory;
 
 describe('A StorageDescriptionHandler', (): void => {
   const path = '.well-known/solid';

@@ -9,7 +9,7 @@ import { NotImplementedHttpError } from '../../util/errors/NotImplementedHttpErr
 import type { FilterPattern } from '../../util/QuadUtil';
 import type { RepresentationPatcherInput } from './RepresentationPatcher';
 import { RepresentationPatcher } from './RepresentationPatcher';
-import namedNode = DataFactory.namedNode;
+const { namedNode } = DataFactory;
 
 /**
  * Guarantees that certain PATCH operations MUST NOT update certain triples in metadata resources.

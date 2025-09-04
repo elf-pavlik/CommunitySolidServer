@@ -21,7 +21,7 @@ import { NOTIFY, RDF, XSD } from '../../util/Vocabularies';
 import { CONTEXT_NOTIFICATION } from './Notification';
 import type { NotificationChannel } from './NotificationChannel';
 import type { NotificationChannelType, SubscriptionService } from './NotificationChannelType';
-import namedNode = DataFactory.namedNode;
+const { namedNode } = DataFactory;
 
 /**
  * Helper type used to store information about the default features.

@@ -2,7 +2,7 @@ import { DataFactory } from 'n3';
 import { AuthorizationParser } from '../../../../../src/http/input/metadata/AuthorizationParser';
 import { RepresentationMetadata } from '../../../../../src/http/representation/RepresentationMetadata';
 import type { HttpRequest } from '../../../../../src/server/HttpRequest';
-import namedNode = DataFactory.namedNode;
+const { namedNode } = DataFactory;
 
 describe('An AuthorizationParser', (): void => {
   const parser = new AuthorizationParser({ custom: 'http://example.com/pred' });

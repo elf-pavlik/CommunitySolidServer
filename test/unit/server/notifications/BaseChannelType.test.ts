@@ -9,10 +9,10 @@ import type { NotificationChannel } from '../../../../src/server/notifications/N
 import { UnprocessableEntityHttpError } from '../../../../src/util/errors/UnprocessableEntityHttpError';
 import { IdentifierSetMultiMap } from '../../../../src/util/map/IdentifierMap';
 import { NOTIFY, RDF, XSD } from '../../../../src/util/Vocabularies';
-import namedNode = DataFactory.namedNode;
-import quad = DataFactory.quad;
-import blankNode = DataFactory.blankNode;
-import literal = DataFactory.literal;
+const { namedNode } = DataFactory;
+const { quad } = DataFactory;
+const { blankNode } = DataFactory;
+const { literal } = DataFactory;
 
 jest.mock('uuid', (): any => ({ v4: (): string => '4c9b88c1-7502-4107-bb79-2a3a590c7aa3' }));
 

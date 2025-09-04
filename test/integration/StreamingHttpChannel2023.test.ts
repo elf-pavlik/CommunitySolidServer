@@ -13,7 +13,7 @@ import {
   instantiateFromConfig,
   removeFolder,
 } from './Config';
-import namedNode = DataFactory.namedNode;
+const { namedNode } = DataFactory;
 
 const port = getPort('StreamingHTTPChannel2023');
 const baseUrl = `http://localhost:${port}/`;

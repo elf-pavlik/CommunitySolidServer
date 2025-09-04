@@ -3,8 +3,8 @@ import { createResponse } from 'node-mocks-http';
 import { CookieMetadataWriter } from '../../../../../src/http/output/metadata/CookieMetadataWriter';
 import { RepresentationMetadata } from '../../../../../src/http/representation/RepresentationMetadata';
 import type { HttpResponse } from '../../../../../src/server/HttpResponse';
-import namedNode = DataFactory.namedNode;
-import literal = DataFactory.literal;
+const { namedNode } = DataFactory;
+const { literal } = DataFactory;
 
 describe('A CookieMetadataWriter', (): void => {
   const writer = new CookieMetadataWriter({

@@ -18,9 +18,9 @@ import {
   WebhookChannel2023Type,
 } from '../../../../../src/server/notifications/WebhookChannel2023/WebhookChannel2023Type';
 import { NOTIFY, RDF } from '../../../../../src/util/Vocabularies';
-import quad = DataFactory.quad;
-import blankNode = DataFactory.blankNode;
-import namedNode = DataFactory.namedNode;
+const { quad } = DataFactory;
+const { blankNode } = DataFactory;
+const { namedNode } = DataFactory;
 
 jest.mock('../../../../../src/logging/LogUtil', (): any => {
   const logger: Logger =

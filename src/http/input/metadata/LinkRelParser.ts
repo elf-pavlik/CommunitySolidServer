@@ -7,7 +7,7 @@ import { parseLinkHeader } from '../../../util/HeaderUtil';
 import { SOLID_META } from '../../../util/Vocabularies';
 import type { RepresentationMetadata } from '../../representation/RepresentationMetadata';
 import { MetadataParser } from './MetadataParser';
-import namedNode = DataFactory.namedNode;
+const { namedNode } = DataFactory;
 
 /**
  * Parses Link headers with a specific `rel` value and adds them as metadata with the given predicate.

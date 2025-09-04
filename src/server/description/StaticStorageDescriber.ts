@@ -3,8 +3,8 @@ import { DataFactory } from 'n3';
 import { stringToTerm } from 'rdf-string';
 import type { ResourceIdentifier } from '../../http/representation/ResourceIdentifier';
 import { StorageDescriber } from './StorageDescriber';
-import quad = DataFactory.quad;
-import namedNode = DataFactory.namedNode;
+const { quad } = DataFactory;
+const { namedNode } = DataFactory;
 
 /**
  * Adds a fixed set of triples to the storage description resource,

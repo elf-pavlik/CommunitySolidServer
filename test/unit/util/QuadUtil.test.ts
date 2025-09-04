@@ -2,7 +2,7 @@ import 'jest-rdf';
 import { DataFactory, Store } from 'n3';
 import { parseQuads, serializeQuads, solveBgp, termToInt, uniqueQuads } from '../../../src/util/QuadUtil';
 import { guardedStreamFrom, readableToString } from '../../../src/util/StreamUtil';
-import variable = DataFactory.variable;
+const { variable } = DataFactory;
 
 const { literal, namedNode, quad } = DataFactory;
 

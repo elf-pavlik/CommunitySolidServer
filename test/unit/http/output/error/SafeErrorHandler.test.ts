@@ -6,7 +6,7 @@ import { BasicRepresentation } from '../../../../../src/http/representation/Basi
 import { NotFoundHttpError } from '../../../../../src/util/errors/NotFoundHttpError';
 import { readableToString } from '../../../../../src/util/StreamUtil';
 import { HTTP, XSD } from '../../../../../src/util/Vocabularies';
-import literal = DataFactory.literal;
+const { literal } = DataFactory;
 
 describe('A SafeErrorHandler', (): void => {
   let error: Error;

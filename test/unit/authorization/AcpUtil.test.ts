@@ -9,7 +9,7 @@ import {
 } from '../../../src/authorization/AcpUtil';
 import { joinUrl } from '../../../src/util/PathUtil';
 import { ACP } from '../../../src/util/Vocabularies';
-import namedNode = DataFactory.namedNode;
+const { namedNode } = DataFactory;
 
 describe('AcpUtil', (): void => {
   const baseUrl = 'http://example.com/';

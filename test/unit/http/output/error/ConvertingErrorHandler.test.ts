@@ -14,7 +14,7 @@ import type {
 import type { HttpError } from '../../../../../src/util/errors/HttpError';
 import { NotFoundHttpError } from '../../../../../src/util/errors/NotFoundHttpError';
 import { HTTP, XSD } from '../../../../../src/util/Vocabularies';
-import literal = DataFactory.literal;
+const { literal } = DataFactory;
 
 const preferences: RepresentationPreferences = { type: { 'text/turtle': 1 }};
 

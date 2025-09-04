@@ -2,7 +2,7 @@ import { DataFactory } from 'n3';
 import { CookieParser } from '../../../../../src/http/input/metadata/CookieParser';
 import { RepresentationMetadata } from '../../../../../src/http/representation/RepresentationMetadata';
 import type { HttpRequest } from '../../../../../src/server/HttpRequest';
-import namedNode = DataFactory.namedNode;
+const { namedNode } = DataFactory;
 
 describe('A CookieParser', (): void => {
   const parser = new CookieParser({ custom1: 'http://example.com/pred1', custom2: 'http://example.com/pred2' });
