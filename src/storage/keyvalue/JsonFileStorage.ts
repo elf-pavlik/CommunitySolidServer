@@ -1,4 +1,4 @@
-import { readJson, writeJson } from 'fs-extra';
+import { readJson, writeJson } from 'fs-extra/esm';
 import type { ResourceIdentifier } from '../../http/representation/ResourceIdentifier';
 import { isSystemError } from '../../util/errors/SystemError';
 import type { ReadWriteLocker } from '../../util/locking/ReadWriteLocker';

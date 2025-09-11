@@ -1,6 +1,8 @@
 import type { Readable } from 'node:stream';
-import type { Stats } from 'fs-extra';
-import { createReadStream, createWriteStream, ensureDir, lstat, opendir, remove, stat } from 'fs-extra';
+import type { Stats } from 'node:fs';
+import { lstat, opendir, stat } from 'node:fs/promises';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { ensureDir, remove } from 'fs-extra/esm'
 import { getLoggerFor } from 'global-logger-factory';
 import type { Representation } from '../../http/representation/Representation';
 import { RepresentationMetadata } from '../../http/representation/RepresentationMetadata';

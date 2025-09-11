@@ -1,5 +1,5 @@
 import fetch from 'cross-fetch';
-import { pathExists } from 'fs-extra';
+import { pathExists } from 'fs-extra/esm';
 import type { App } from '../../src/init/App';
 import { getPort } from '../util/Util';
 import {

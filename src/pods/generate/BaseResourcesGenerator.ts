@@ -1,6 +1,6 @@
 import { createReadStream, promises as fsPromises } from 'node:fs';
 import type { Readable } from 'node:stream';
-import { pathExists } from 'fs-extra';
+import { pathExists } from 'fs-extra/esm';
 import { Parser } from 'n3';
 import { getLoggerFor } from 'global-logger-factory';
 import type { AuxiliaryStrategy } from '../../http/auxiliary/AuxiliaryStrategy';

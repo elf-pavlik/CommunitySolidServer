@@ -2,6 +2,9 @@ import type { IComponentsManagerBuilderOptions, LogLevel } from 'componentsjs';
 import { ComponentsManager } from 'componentsjs';
 import { joinFilePath } from '../../util/PathUtil';
 import type { ComponentsJsFactory } from './ComponentsJsFactory';
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
  * Can be used to instantiate objects using Components.js.

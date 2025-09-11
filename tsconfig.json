@@ -3,8 +3,8 @@
   "compilerOptions": {
     "incremental": true,
     "lib": [ "es2023" ],
-    "module": "node20",
-    "moduleResolution": "nodenext",
+    "module": "es2022",
+    "moduleResolution": "bundler",
     "declaration": true,
     "inlineSources": true,
     "newLine": "lf",

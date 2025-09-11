@@ -1,5 +1,5 @@
 import fetch from 'cross-fetch';
-import { ensureFile, writeJson } from 'fs-extra';
+import { ensureFile, writeJson } from 'fs-extra/esm';
 import type { App } from '../../src/init/App';
 import { joinFilePath, joinUrl } from '../../src/util/PathUtil';
 import { getPort } from '../util/Util';

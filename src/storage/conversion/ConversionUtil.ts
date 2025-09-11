@@ -1,6 +1,6 @@
 import TTLCache from '@isaacs/ttlcache';
 import fetch from 'cross-fetch';
-import { readJsonSync } from 'fs-extra';
+import { readJsonSync } from 'fs-extra/esm';
 import type { IJsonLdContext } from 'jsonld-context-parser';
 import { FetchDocumentLoader } from 'jsonld-context-parser';
 import type { ValuePreference, ValuePreferences } from '../../http/representation/RepresentationPreferences';

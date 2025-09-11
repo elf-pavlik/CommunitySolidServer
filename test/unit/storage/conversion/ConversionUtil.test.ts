@@ -1,5 +1,5 @@
 import fetch, { Headers } from 'cross-fetch';
-import * as fsExtra from 'fs-extra';
+import * as fsExtra from 'fs-extra/esm';
 import type { ValuePreferences } from '../../../../src/http/representation/RepresentationPreferences';
 import {
   cleanPreferences,

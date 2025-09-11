@@ -1,4 +1,4 @@
-import { readdir } from 'fs-extra';
+import { readdir } from 'fs-extra/esm';
 import { FileSystemResourceLocker, InternalServerError, joinFilePath } from '../../../../src';
 import { getTestFolder, removeFolder } from '../../../integration/Config';
 

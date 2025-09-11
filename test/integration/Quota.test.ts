@@ -1,7 +1,7 @@
 import type { Stats } from 'node:fs';
 import fetch from 'cross-fetch';
 import type { Response } from 'cross-fetch';
-import { ensureDir, pathExists, stat } from 'fs-extra';
+import { ensureDir, pathExists, stat } from 'fs-extra/esm';
 import { joinUrl } from '../../src';
 import type { App } from '../../src';
 import { register } from '../util/AccountUtil';

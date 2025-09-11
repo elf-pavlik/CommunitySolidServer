@@ -1,6 +1,6 @@
 import { createDpopHeader, generateDpopKeyPair } from '@inrupt/solid-client-authn-core';
 import fetch from 'cross-fetch';
-import { copy, readdir } from 'fs-extra';
+import { copy, readdir } from 'fs-extra/esm';
 import type { App } from '../../src/init/App';
 import { APPLICATION_X_WWW_FORM_URLENCODED } from '../../src/util/ContentTypes';
 import { joinFilePath, joinUrl, resolveAssetPath } from '../../src/util/PathUtil';

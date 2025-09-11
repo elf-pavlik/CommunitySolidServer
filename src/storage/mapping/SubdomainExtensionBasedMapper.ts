@@ -1,4 +1,4 @@
-import { toASCII, toUnicode } from 'punycode/';
+import { toASCII, toUnicode } from 'punycode';
 import type { ResourceIdentifier } from '../../http/representation/ResourceIdentifier';
 import { ForbiddenHttpError } from '../../util/errors/ForbiddenHttpError';
 import { InternalServerError } from '../../util/errors/InternalServerError';

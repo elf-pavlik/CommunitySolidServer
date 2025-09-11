@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { ensureDir, remove } from 'fs-extra';
+import { ensureDir, remove } from 'fs-extra/esm';
 import type { LockOptions, UnlockOptions } from 'proper-lockfile';
 import { lock, unlock } from 'proper-lockfile';
 import { getLoggerFor } from 'global-logger-factory';

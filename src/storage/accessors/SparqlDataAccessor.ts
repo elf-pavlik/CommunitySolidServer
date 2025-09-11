@@ -11,7 +11,8 @@ import type {
   Update,
   UpdateOperation,
 } from 'sparqljs';
-import { Generator } from 'sparqljs';
+import sparqlpkg from 'sparqljs';
+const { Generator } = sparqlpkg;
 import { getLoggerFor } from 'global-logger-factory';
 import type { Representation } from '../../http/representation/Representation';
 import { RepresentationMetadata } from '../../http/representation/RepresentationMetadata';

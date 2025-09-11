@@ -1,4 +1,4 @@
-import { writeJson } from 'fs-extra';
+import { writeJson } from 'fs-extra/esm';
 import type { AccountStore } from '../../../src/identity/interaction/account/util/AccountStore';
 import type { PasswordStore } from '../../../src/identity/interaction/password/util/PasswordStore';
 import type { PodCreator } from '../../../src/identity/interaction/pod/util/PodCreator';

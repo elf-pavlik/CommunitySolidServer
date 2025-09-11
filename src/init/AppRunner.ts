@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import type { WriteStream } from 'node:tty';
 import type { IComponentsManagerBuilderOptions } from 'componentsjs';
 import { ComponentsManager } from 'componentsjs';
-import { readJSON } from 'fs-extra';
+import { readJSON } from 'fs-extra/esm';
 import yargs from 'yargs';
 import { getLoggerFor, LOG_LEVELS } from 'global-logger-factory';
 import { createErrorMessage, isError } from '../util/errors/ErrorUtil';

@@ -1,4 +1,5 @@
-import { compile } from 'handlebars';
+import handlebars from 'handlebars';
+const { compile } = handlebars;
 import { ExtensionBasedTemplateEngine } from './ExtensionBasedTemplateEngine';
 import type { TemplateEngineInput } from './TemplateEngine';
 import { readTemplate } from './TemplateUtil';

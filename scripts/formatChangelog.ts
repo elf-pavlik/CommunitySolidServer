@@ -1,7 +1,7 @@
 #!/usr/bin/env ts-node
 
 /* eslint-disable no-console */
-import { readFile, writeFile } from 'fs-extra';
+import { readFile, writeFile } from 'fs-extra/esm';
 
 /**
  * Script called after the changelog changes of standard-version

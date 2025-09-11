@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Readable } from 'node:stream';
-import { ensureDirSync, rename, unlink } from 'fs-extra';
+import { rename, unlink } from 'node:fs/promises';
+import { ensureDirSync } from 'fs-extra/esm';
 import type { RepresentationMetadata } from '../../http/representation/RepresentationMetadata';
 import type { ResourceIdentifier } from '../../http/representation/ResourceIdentifier';
 import type { Guarded } from '../../util/GuardedStream';

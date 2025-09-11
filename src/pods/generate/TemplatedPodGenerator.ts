@@ -9,6 +9,9 @@ import type { ComponentsJsFactory } from './ComponentsJsFactory';
 import type { PodGenerator } from './PodGenerator';
 import type { VariableHandler } from './variables/VariableHandler';
 import { isValidVariable, TEMPLATE, TEMPLATE_VARIABLE } from './variables/Variables';
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const DEFAULT_CONFIG_PATH = joinFilePath(__dirname, '../../../templates/config/');
 

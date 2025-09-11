@@ -1,6 +1,6 @@
 import type { IModuleState } from 'componentsjs';
 import { ComponentsManager } from 'componentsjs';
-import { remove } from 'fs-extra';
+import { remove } from 'fs-extra/esm';
 import { joinFilePath } from '../../src/util/PathUtil';
 
 let cachedModuleState: IModuleState;

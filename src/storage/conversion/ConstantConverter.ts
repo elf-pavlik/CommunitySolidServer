@@ -1,6 +1,6 @@
 import type { Stats } from 'node:fs';
 import { createReadStream } from 'node:fs';
-import { stat } from 'fs-extra';
+import { stat } from 'node:fs/promises';
 import { getLoggerFor } from 'global-logger-factory';
 import { BasicRepresentation } from '../../http/representation/BasicRepresentation';
 import type { Representation } from '../../http/representation/Representation';

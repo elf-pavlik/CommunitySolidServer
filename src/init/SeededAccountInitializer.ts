@@ -1,4 +1,4 @@
-import { readJson } from 'fs-extra';
+import { readJson } from 'fs-extra/esm';
 import { array, object, string } from 'yup';
 import { getLoggerFor } from 'global-logger-factory';
 import type { AccountStore } from '../identity/interaction/account/util/AccountStore';

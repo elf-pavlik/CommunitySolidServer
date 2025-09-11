@@ -1,5 +1,5 @@
 import { posix, win32 } from 'node:path';
-import { readJson } from 'fs-extra';
+import { readJson } from 'fs-extra/esm';
 import urljoin from 'url-join';
 import type { TargetExtractor } from '../http/input/identifier/TargetExtractor';
 import type { ResourceIdentifier } from '../http/representation/ResourceIdentifier';
@@ -7,6 +7,9 @@ import type { HttpRequest } from '../server/HttpRequest';
 import { BadRequestHttpError } from './errors/BadRequestHttpError';
 import { errorTermsToMetadata } from './errors/HttpErrorUtil';
 import type { Json } from './Json';
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
  * Changes a potential Windows path into a POSIX path.
