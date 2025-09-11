@@ -1,4 +1,4 @@
-const opinionated = require('opinionated-eslint-config');
+import opinionated from 'opinionated-eslint-config';
 
 module.exports = opinionated(
   {

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-const { AppRunner } = require('..');
+import { AppRunner } from '../dist/index.js';
 
 // Attaching a logger to the uncaughtExceptionMonitor event,
 // such that the default uncaughtException behavior still occurs.

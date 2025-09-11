@@ -12,7 +12,7 @@ export default async function(): Promise<void> {
   // (which are instantiated by Components.js)
   try {
     // eslint-disable-next-line global-require,ts/no-var-requires,ts/no-require-imports
-    const dist = require('../../dist/logging/LogUtil');
+    const dist = await import('../../dist/logging/LogUtil');
     dist.setGlobalLoggerFactory(loggerFactory);
   } catch {
     // Ignore
