@@ -41,7 +41,7 @@
     "https://linkedsoftwaredependencies.org/bundles/npm/@solid/community-server/^8.0.0/templates/config/": "templates/config/"
   },
   "scripts": {
-    "build": "npm run build:ts && npm run build:components",
+    "build": "npm run build:ts && npm run build:components && ts-add-js-extension",
     "build:components": "componentsjs-generator -s src -c dist/components -r css -i .componentsignore",
     "build:ts": "tsc",
     "mkdocs": "npm run mkdocs:docker || npm run mkdocs:pip",
@@ -166,6 +166,7 @@
     "set-cookie-parser": "^2.6.0",
     "simple-git": "^3.20.0",
     "supertest": "^7.0.0",
+    "ts-add-js-extension": "^1.6.6",
     "ts-jest": "^29.4.1",
     "ts-node": "^10.9.2",
     "typedoc": "^0.28.12",
