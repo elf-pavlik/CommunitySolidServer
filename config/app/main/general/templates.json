@@ -10,6 +10,11 @@
       "@type": "StatusWaterfallHandler",
       "handlers": [
         {
+          "comment": "Template engine that supports tagged template literal (TS/JS) templates.",
+          "@type": "TaggedTemplateLiteralEngine",
+          "baseUrl": { "@id": "urn:solid-server:default:variable:baseUrl" }
+        },
+        {
           "comment": "Template engine that supports EJS templates.",
           "@type": "EjsTemplateEngine",
           "baseUrl": { "@id": "urn:solid-server:default:variable:baseUrl" }

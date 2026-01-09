@@ -589,6 +589,7 @@ export * from './util/templates/EjsTemplateEngine';
 export * from './util/templates/ExtensionBasedTemplateEngine';
 export * from './util/templates/HandlebarsTemplateEngine';
 export * from './util/templates/StaticTemplateEngine';
+export * from './util/templates/TaggedTemplateLiteralEngine';
 export * from './util/templates/TemplateEngine';
 export * from './util/templates/TemplateUtil';
 
