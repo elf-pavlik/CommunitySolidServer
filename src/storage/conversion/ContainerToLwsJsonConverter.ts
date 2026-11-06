@@ -247,9 +247,13 @@ export class ContainerToLwsJsonConverter extends BaseTypedRepresentationConverte
       // This converter only generates items with a single type
       const type = item.type === 'Container' ? LWS.terms.Container : LWS.terms.DataResource;
       quads.push(DataFactory.quad(child, RDF.terms.type, type));
-      if (item.format) {
-        quads.push(DataFactory.quad(child, DC.terms.format, DataFactory.literal(item.format)));
+      // The LWS context only defines these terms on data resources,
+      // so they are not part of the RDF of the JSON representation for containers.
+      if (item.type === 'Container') {
+        continue;
       }
+      // Data resources always have a format
+      quads.push(DataFactory.quad(child, DC.terms.format, DataFactory.literal(item.format!)));
       if (item.size !== undefined) {
         quads.push(DataFactory.quad(child, SCHEMA.terms.size, DataFactory.literal(`${item.size}`, XSD.terms.long)));
       }
