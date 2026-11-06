@@ -82,8 +82,8 @@ describe('A JsonPatcher', (): void => {
     });
 
     it('applies JSON Patch documents.', async(): Promise<void> => {
-      patch = getPatch('[{ "op": "remove", "path": "/a" }, { "op": "add", "path": "/b/c", "value": 2 }]',
-        'application/json-patch+json');
+      const body = '[{ "op": "remove", "path": "/a" }, { "op": "add", "path": "/b/c", "value": 2 }]';
+      patch = getPatch(body, 'application/json-patch+json');
       const result = await patcher.handle({ identifier, patch, representation });
       expect(JSON.parse(await readableToString(result.data))).toEqual({ b: { c: 2, d: 3 }});
     });

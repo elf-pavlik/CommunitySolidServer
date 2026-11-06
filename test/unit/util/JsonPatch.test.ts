@@ -70,7 +70,8 @@ describe('JsonPatch', (): void => {
         { foo: { bar: 'baz', waldo: 'fred' }, qux: { corge: 'grault' }},
         [{ op: 'move', from: '/foo/waldo', path: '/qux/thud' }],
       )).toEqual({ foo: { bar: 'baz' }, qux: { corge: 'grault', thud: 'fred' }});
-      expect(applyJsonPatch({ foo: [ 'all', 'grass', 'cows', 'eat' ]}, [{ op: 'move', from: '/foo/1', path: '/foo/3' }]))
+      const target = { foo: [ 'all', 'grass', 'cows', 'eat' ]};
+      expect(applyJsonPatch(target, [{ op: 'move', from: '/foo/1', path: '/foo/3' }]))
         .toEqual({ foo: [ 'all', 'cows', 'eat', 'grass' ]});
     });
 

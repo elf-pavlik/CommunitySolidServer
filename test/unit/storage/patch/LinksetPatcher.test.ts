@@ -86,8 +86,7 @@ describe('A LinksetPatcher', (): void => {
     });
 
     it('rejects JSON Patch documents with a failing test.', async(): Promise<void> => {
-      patch = getPatch([{ op: 'test', path: '/linkset/0/anchor', value: 'http://test.com/other' }],
-        'application/json-patch+json');
+      patch = getPatch([{ op: 'test', path: '/linkset/0/anchor', value: 'http://test.com/other' }], 'application/json-patch+json');
       await expect(patcher.handle({ identifier, patch, representation })).rejects.toThrow(ConflictHttpError);
     });
 

@@ -235,31 +235,33 @@ export class ContainerToLwsJsonConverter extends BaseTypedRepresentationConverte
    * in the given RDF media type.
    */
   protected serializeProfile(container: LwsContainerRepresentation, contentType: string): string {
-    const { namedNode, literal, quad } = DataFactory;
-    const subject = namedNode(container.id);
+    const subject = DataFactory.namedNode(container.id);
+    const totalItems = DataFactory.literal(`${container.totalItems}`, XSD.terms.integer);
     const quads: Quad[] = [
-      quad(subject, RDF.terms.type, LWS.terms.Container),
-      quad(subject, LWS.terms.totalItems, literal(`${container.totalItems}`, XSD.terms.integer)),
+      DataFactory.quad(subject, RDF.terms.type, LWS.terms.Container),
+      DataFactory.quad(subject, LWS.terms.totalItems, totalItems),
     ];
     for (const item of container.items) {
-      const child = namedNode(item.id);
-      quads.push(quad(subject, LWS.terms.items, child));
+      const child = DataFactory.namedNode(item.id);
+      quads.push(DataFactory.quad(subject, LWS.terms.items, child));
       // This converter only generates items with a single type
-      quads.push(quad(child, RDF.terms.type, item.type === 'Container' ? LWS.terms.Container : LWS.terms.DataResource));
+      const type = item.type === 'Container' ? LWS.terms.Container : LWS.terms.DataResource;
+      quads.push(DataFactory.quad(child, RDF.terms.type, type));
       if (item.format) {
-        quads.push(quad(child, DC.terms.format, literal(item.format)));
+        quads.push(DataFactory.quad(child, DC.terms.format, DataFactory.literal(item.format)));
       }
       if (item.size !== undefined) {
-        quads.push(quad(child, SCHEMA.terms.size, literal(`${item.size}`, XSD.terms.long)));
+        quads.push(DataFactory.quad(child, SCHEMA.terms.size, DataFactory.literal(`${item.size}`, XSD.terms.long)));
       }
       if (item.modified) {
-        quads.push(quad(child, DC.terms.modified, literal(item.modified, XSD.terms.dateTime)));
+        quads.push(DataFactory.quad(child, DC.terms.modified, DataFactory.literal(item.modified, XSD.terms.dateTime)));
       }
     }
+    // Without an output stream, the writer calls the callback synchronously and can not fail
     const writer = new Writer({ format: contentType });
     writer.addQuads(quads);
     let result = '';
-    writer.end((error, output: string): void => {
+    writer.end((_, output: string): void => {
       result = output;
     });
     return result;

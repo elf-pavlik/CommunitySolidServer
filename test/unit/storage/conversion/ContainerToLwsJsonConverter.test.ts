@@ -14,6 +14,10 @@ import { NotImplementedHttpError } from '../../../../src/util/errors/NotImplemen
 import { readableToString } from '../../../../src/util/StreamUtil';
 import { CONTENT_TYPE_TERM, DC, IANA, LDP, LWS, POSIX, RDF, SCHEMA, XSD } from '../../../../src/util/Vocabularies';
 
+function profiled(type: string, weight = 1): RepresentationPreferences {
+  return { type: { [type]: weight }, profiles: { [LWS_PROFILE]: { [type]: weight }}};
+}
+
 function itemIds(json: any): string[] {
   return json.items.map((item: any): string => item.id);
 }
@@ -189,10 +193,6 @@ describe('A ContainerToLwsJsonConverter', (): void => {
 
   describe('LWS profile', (): void => {
     const c = container.path;
-    const profiled = (type: string, weight = 1): RepresentationPreferences => ({
-      type: { [type]: weight },
-      profiles: { [LWS_PROFILE]: { [type]: weight }},
-    });
 
     beforeEach(async(): Promise<void> => {
       representation = new BasicRepresentation([
@@ -235,7 +235,8 @@ describe('A ContainerToLwsJsonConverter', (): void => {
     });
 
     it('serializes the profile in RDF media types.', async(): Promise<void> => {
-      const result = await converter.handle({ identifier: container, representation, preferences: profiled('text/turtle') });
+      const preferences = profiled('text/turtle');
+      const result = await converter.handle({ identifier: container, representation, preferences });
       expect(result.metadata.contentTypeObject?.toHeaderValueString())
         .toBe(`text/turtle; profile="${LWS_PROFILE}"`);
       const quads = new Parser().parse(await readableToString(result.data));

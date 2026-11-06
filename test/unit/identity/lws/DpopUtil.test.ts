@@ -8,11 +8,9 @@ describe('DpopUtil', (): void => {
   let privateKey: KeyLike;
   let jwk: JWK;
 
-  async function createProof(
-    claims: Record<string, unknown> = { htm: 'POST', htu: url },
-    header: Record<string, unknown> = {},
-  ): Promise<string> {
-    return new SignJWT({ jti: 'id', ...claims })
+  async function createProof(claims?: Record<string, unknown>, header: Record<string, unknown> = {}):
+  Promise<string> {
+    return new SignJWT({ jti: 'id', ...claims ?? { htm: 'POST', htu: url }})
       .setProtectedHeader({ alg: 'ES256', typ: 'dpop+jwt', jwk, ...header })
       .setIssuedAt()
       .sign(privateKey);
