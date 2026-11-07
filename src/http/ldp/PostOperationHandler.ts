@@ -48,6 +48,6 @@ export class PostOperationHandler extends OperationHandler {
     if (!createdIdentifier) {
       throw new InternalServerError('Operation was successful but no created identifier was returned.');
     }
-    return new CreatedResponseDescription(createdIdentifier);
+    return new CreatedResponseDescription(createdIdentifier, changes.get(createdIdentifier));
   }
 }

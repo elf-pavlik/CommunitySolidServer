@@ -7,15 +7,24 @@ As LWS is still a draft, the behaviour described here may change along with the 
 
 ## Configurations
 
-There are four configurations that enable LWS.
-All of them store data on disk and allow the creation of accounts and pods, just like `file.json`.
+There are six configurations that enable LWS.
+All of them allow the creation of accounts and pods.
+The path-based configurations store data on disk.
+The `-flat` variants are LWS-only and allocate every new resource as `{storageRoot}{uuid}`
+without a trailing slash, including containers, and store containment as metadata,
+so the URI structure does not reflect the containment hierarchy.
+Flat identifiers are not valid in Solid, so there are no `solid-lws-flat` presets.
+The flat presets currently use the in-memory backend,
+as the file backend depends on trailing slashes to identify containers.
 
-| Configuration        | Protocols    | Authorization |
-|----------------------|--------------|---------------|
-| `lws.json`           | LWS          | WAC           |
-| `lws-acp.json`       | LWS          | ACP           |
-| `solid-lws.json`     | Solid + LWS  | WAC           |
-| `solid-lws-acp.json` | Solid + LWS  | ACP           |
+| Configuration             | Protocols    | Authorization | Identifiers |
+|---------------------------|--------------|---------------|-------------|
+| `lws.json`                | LWS          | WAC           | path-based  |
+| `lws-acp.json`            | LWS          | ACP           | path-based  |
+| `solid-lws.json`          | Solid + LWS  | WAC           | path-based  |
+| `solid-lws-acp.json`      | Solid + LWS  | ACP           | path-based  |
+| `lws-flat.json`           | LWS          | WAC           | flat UUID   |
+| `lws-acp-flat.json`       | LWS          | ACP           | flat UUID   |
 
 For example, to start an LWS server on port 3000 that stores its data in the `data` folder:
 
@@ -56,6 +65,31 @@ Responses contain the `up`, `type`, and `linkset` links required by LWS,
 and successful modifications return `204 No Content`.
 JSON resources can be modified with [JSON Patch](https://www.rfc-editor.org/rfc/rfc6902)
 and [JSON Merge Patch](https://www.rfc-editor.org/rfc/rfc7386) requests.
+
+### Flat UUID identifiers
+
+The `-flat` configurations do not derive identifiers or containment from the URI path.
+Every resource created with `POST` gets a `{storageRoot}{uuid}` identifier,
+and any `Slug` header is ignored.
+Identifiers never end with a slash, not even for containers.
+The container type is stored as resource metadata instead.
+The parent container is stored as `lws:partOf` metadata on the resource,
+and the members of a container are stored as `lws:contains` metadata on the container.
+The container listing, `up` links, recursive deletes, and access grants all use this metadata.
+Clients should therefore always discover parents through the `up` link and members through the container representation,
+never by parsing the URI.
+
+The flat store does not require the container path to end in a slash,
+so it works with the memory and SPARQL accessors.
+The file accessor is not supported, because it uses trailing slashes to map containers to directories.
+
+Since containment is metadata, a container can be nested several levels deep
+while all its resources have UUID identifiers directly under the storage root.
+The store uses the configured `StorageLocationStrategy` to find that root,
+so the flat presets work with both `css:config/util/identifiers/suffix.json` (path-based pods)
+and `css:config/util/identifiers/subdomain.json` (subdomain pods).
+Deleting a container still requires it to be empty,
+so containers are deleted bottom-up unless the request uses `Depth: infinity`.
 
 ## Linksets
 

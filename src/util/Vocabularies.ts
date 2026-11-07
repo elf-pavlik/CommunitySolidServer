@@ -62,7 +62,9 @@ export const LDP = createVocabulary(
 
 export const LWS = createVocabulary(
   'https://www.w3.org/ns/lws#',
+  'contains',
   'items',
+  'partOf',
   'storage',
   'totalItems',
 

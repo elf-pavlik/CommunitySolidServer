@@ -34,6 +34,7 @@ import {
   CONTENT_TYPE_TERM,
   DC,
   LDP,
+  LWS,
   PIM,
   POSIX,
   PREFERRED_PREFIX_TERM,
@@ -125,12 +126,12 @@ export class DataAccessorBasedStore implements ResourceStore {
     // https://solid.github.io/specification/protocol#auxiliary-resources
     await this.auxiliaryStrategy.addMetadata(metadata);
 
-    const isContainer = isContainerPath(metadata.identifier.value);
+    const isContainer = this.isContainer(identifier, metadata);
     let data = metadata.quads();
     if (isContainer || isMetadata) {
       if (isContainer) {
         // Add containment triples of non-auxiliary resources
-        for await (const child of this.accessor.getChildren(identifier)) {
+        for await (const child of this.getContainerChildren(identifier, metadata)) {
           if (!this.auxiliaryStrategy.isAuxiliaryIdentifier({ path: child.identifier.value })) {
             if (!isMetadata) {
               metadata.addQuads(child.quads());
@@ -185,7 +186,7 @@ export class DataAccessorBasedStore implements ResourceStore {
     // Solid, §5: "Servers MUST respond with the 405 status code to requests using HTTP methods
     // that are not supported by the target resource."
     // https://solid.github.io/specification/protocol#reading-writing-resources
-    if (!isContainerPath(parentMetadata.identifier.value)) {
+    if (!this.isContainer({ path: parentMetadata.identifier.value }, parentMetadata)) {
       throw new MethodNotAllowedHttpError([ 'POST' ], 'The given path is not a container.');
     }
 
@@ -196,7 +197,7 @@ export class DataAccessorBasedStore implements ResourceStore {
     // Clients who want the server to assign a URI of a resource, MUST use the POST request."
     // https://solid.github.io/specification/protocol#resource-type-heuristics
     const newID = await this.createSafeUri(container, representation.metadata);
-    const isContainer = isContainerIdentifier(newID);
+    const isContainer = this.isContainer(newID, representation.metadata);
 
     // Ensure the representation is supported by the accessor
     // Containers are not checked because uploaded representations are treated as metadata
@@ -205,7 +206,9 @@ export class DataAccessorBasedStore implements ResourceStore {
     }
 
     // Write the data. New containers should never be made for a POST request.
-    return this.writeData(newID, representation, isContainer, false, false);
+    // The target container is passed explicitly since it can not be derived from the identifier
+    // when containment is stored as metadata instead of being reflected in the URI path.
+    return this.writeData(newID, representation, isContainer, false, false, container);
   }
 
   public async setRepresentation(
@@ -219,7 +222,7 @@ export class DataAccessorBasedStore implements ResourceStore {
     const oldMetadata = await this.getSafeNormalizedMetadata(identifier);
     // We do not allow PUT on an already existing Container
     // See https://github.com/CommunitySolidServer/CommunitySolidServer/issues/1027#issuecomment-1023371546
-    if (oldMetadata && isContainerIdentifier(identifier)) {
+    if (oldMetadata && this.isContainer(identifier, oldMetadata)) {
       throw new ConflictHttpError('Existing containers cannot be updated via PUT.');
     }
 
@@ -246,7 +249,7 @@ export class DataAccessorBasedStore implements ResourceStore {
 
     // Solid, §3.1: "Paths ending with a slash denote a container resource."
     // https://solid.github.io/specification/protocol#uri-slash-semantics
-    const isContainer = isContainerIdentifier(identifier);
+    const isContainer = this.isContainer(identifier, oldMetadata ?? representation.metadata);
     if (!isContainer && this.isContainerType(representation.metadata)) {
       throw new BadRequestHttpError('Containers should have a `/` at the end of their path, resources should not.');
     }
@@ -264,7 +267,14 @@ export class DataAccessorBasedStore implements ResourceStore {
     }
 
     // Potentially have to create containers if it didn't exist yet
-    return this.writeData(identifier, representation, isContainer, !oldMetadata, Boolean(oldMetadata));
+    return this.writeData(
+      identifier,
+      representation,
+      isContainer,
+      !oldMetadata,
+      Boolean(oldMetadata),
+      oldMetadata ? this.getParentContainerFromMetadata(oldMetadata) : undefined,
+    );
   }
 
   public async modifyResource(identifier: ResourceIdentifier, patch: Patch, conditions?: Conditions): Promise<never> {
@@ -321,7 +331,7 @@ export class DataAccessorBasedStore implements ResourceStore {
     // the server MUST respond with the 409 status code and response body describing the error."
     // https://solid.github.io/specification/protocol#deleting-resources
     // Auxiliary resources are not counted when deleting a container since they will also be deleted.
-    if (isContainerIdentifier(identifier) && await this.hasProperChildren(identifier)) {
+    if (this.isContainer(identifier, metadata) && await this.hasProperChildren(identifier, metadata)) {
       throw new ConflictHttpError('Can only delete empty containers.');
     }
 
@@ -338,18 +348,31 @@ export class DataAccessorBasedStore implements ResourceStore {
       }
     }
 
-    if (!this.identifierStrategy.isRootContainer(identifier)) {
-      const container = this.identifierStrategy.getParentContainer(identifier);
-
+    const container = this.getParentContainerFromMetadata(metadata) ??
+      (this.identifierStrategy.isRootContainer(identifier) ?
+        undefined :
+          this.identifierStrategy.getParentContainer(identifier));
+    if (container) {
       this.addContainerActivity(changes, container, false, identifier);
 
-      // Update modified date of parent
-      await this.updateContainerModifiedDate(container);
+      // Remove the containment metadata from the parent and update its modified date
+      await this.removeContainedResource(container, identifier);
     }
 
     await this.accessor.deleteResource(identifier);
     this.addActivityMetadata(changes, identifier, AS.terms.Delete);
     return changes;
+  }
+
+  /**
+   * Determines whether the given identifier represents a container.
+   * The default implementation uses the trailing slash convention.
+   * Stores that decouple identifiers from containment can override this using the metadata.
+   */
+  protected isContainer(identifier: ResourceIdentifier, metadata?: RepresentationMetadata): boolean {
+    // Most stores use the identifier, but subclasses can use the metadata instead.
+    void metadata;
+    return isContainerIdentifier(identifier);
   }
 
   /**
@@ -477,11 +500,21 @@ export class DataAccessorBasedStore implements ResourceStore {
     isContainer: boolean,
     createContainers: boolean,
     exists: boolean,
+    parent?: ResourceIdentifier,
   ): Promise<ChangeMap> {
     // Make sure the metadata has the correct identifier and correct type quads
     // Need to do this before handling container data to have the correct identifier
     representation.metadata.identifier = DataFactory.namedNode(identifier.path);
     addResourceMetadata(representation.metadata, isContainer);
+
+    // The parent is server-managed containment metadata. It can not be set by clients,
+    // and is required to find the parent container when containment is independent of the URI path.
+    if (this.storesContainmentMetadata()) {
+      representation.metadata.removeAll(LWS.terms.partOf);
+      if (parent) {
+        representation.metadata.add(LWS.terms.partOf, DataFactory.namedNode(parent.path));
+      }
+    }
 
     // Validate container data
     if (isContainer) {
@@ -502,19 +535,19 @@ export class DataAccessorBasedStore implements ResourceStore {
     // https://solid.github.io/specification/protocol#writing-resources
     let changes: ChangeMap = new IdentifierMap();
     if (!this.identifierStrategy.isRootContainer(identifier) && !exists) {
-      const parent = this.identifierStrategy.getParentContainer(identifier);
+      const container = parent ?? this.identifierStrategy.getParentContainer(identifier);
 
       if (createContainers) {
-        changes = await this.createRecursiveContainers(parent);
+        changes = await this.createRecursiveContainers(container);
       }
 
       // No changes means the parent container exists and will be updated
       if (changes.size === 0) {
-        this.addContainerActivity(changes, parent, true, identifier);
+        this.addContainerActivity(changes, container, true, identifier);
       }
 
-      // Parent container is also modified
-      await this.updateContainerModifiedDate(parent);
+      // Parent container is also modified, and gets the containment metadata for the new resource
+      await this.addContainedResource(container, identifier);
     }
 
     // Remove all generated metadata to prevent it from being stored permanently
@@ -525,6 +558,13 @@ export class DataAccessorBasedStore implements ResourceStore {
         this.accessor.writeDocument(identifier, representation.data, representation.metadata));
 
     this.addActivityMetadata(changes, identifier, exists ? AS.terms.Update : AS.terms.Create);
+    if (isContainer) {
+      changes.get(identifier)?.add(RDF.terms.type, LDP.terms.Container);
+      changes.get(identifier)?.add(RDF.terms.type, LDP.terms.BasicContainer);
+    }
+    if (parent && this.storesContainmentMetadata()) {
+      changes.get(identifier)?.add(LWS.terms.partOf, DataFactory.namedNode(parent.path));
+    }
     return changes;
   }
 
@@ -565,6 +605,82 @@ export class DataAccessorBasedStore implements ResourceStore {
   }
 
   /**
+   * Adds containment metadata to the given container and updates its modified date.
+   */
+  protected async addContainedResource(container: ResourceIdentifier, resource: ResourceIdentifier): Promise<void> {
+    if (!this.storesContainmentMetadata()) {
+      await this.updateContainerModifiedDate(container);
+      return;
+    }
+
+    const metadata = await this.accessor.getMetadata(container);
+    metadata.add(LWS.terms.contains, DataFactory.namedNode(resource.path));
+    updateModifiedDate(metadata);
+    this.removeResponseMetadata(metadata);
+    await this.accessor.writeContainer(container, metadata);
+  }
+
+  /**
+   * Removes containment metadata about the given resource from its container.
+   */
+  protected async removeContainedResource(container: ResourceIdentifier, resource: ResourceIdentifier): Promise<void> {
+    if (!this.storesContainmentMetadata()) {
+      await this.updateContainerModifiedDate(container);
+      return;
+    }
+
+    const metadata = await this.accessor.getMetadata(container);
+    metadata.remove(LWS.terms.contains, DataFactory.namedNode(resource.path));
+    updateModifiedDate(metadata);
+    this.removeResponseMetadata(metadata);
+    await this.accessor.writeContainer(container, metadata);
+  }
+
+  /**
+   * Determines whether containment is stored as `lws:contains` metadata in the parent container.
+   * If this is not the case, containment is derived from the URI path by the {@link DataAccessor}.
+   */
+  protected storesContainmentMetadata(): boolean {
+    return false;
+  }
+
+  /**
+   * Returns the parent container stored in the `lws:partOf` metadata of the given resource.
+   */
+  protected getParentContainerFromMetadata(metadata: RepresentationMetadata): ResourceIdentifier | undefined {
+    const parent = metadata.get(LWS.terms.partOf);
+    if (parent) {
+      return { path: parent.value };
+    }
+  }
+
+  /**
+   * Returns the children of the given container.
+   * When containment is stored as metadata, the `lws:contains` values are used instead of the URI path.
+   */
+  protected async* getContainerChildren(
+    container: ResourceIdentifier,
+    metadata: RepresentationMetadata,
+  ): AsyncIterableIterator<RepresentationMetadata> {
+    if (!this.storesContainmentMetadata()) {
+      yield* this.accessor.getChildren(container);
+      return;
+    }
+
+    for (const child of metadata.getAll(LWS.terms.contains)) {
+      const identifier = { path: child.value };
+      try {
+        yield await this.accessor.getMetadata(identifier);
+      } catch (error: unknown) {
+        if (!NotFoundHttpError.isInstance(error)) {
+          throw error;
+        }
+        // Ignore a containment triple that points to a resource that no longer exists
+      }
+    }
+  }
+
+  /**
    * Generates a new URI for a resource in the given container, potentially using the given slug.
    *
    * Solid, §5.3: "Servers MUST allow creating new resources with a POST request to URI path ending `/`.
@@ -583,6 +699,18 @@ export class DataAccessorBasedStore implements ResourceStore {
     const name = (slug && this.cleanSlug(slug)) ?? randomUUID();
     const suffix = isContainer ? '/' : '';
     return { path: `${base}${name}${suffix}` };
+  }
+
+  /**
+   * Generates the identifier for a new resource.
+   * Subclasses can override this to decouple identifiers from the container URI.
+   */
+  protected async createIdentifier(
+    container: ResourceIdentifier,
+    isContainer: boolean,
+    slug?: string,
+  ): Promise<ResourceIdentifier> {
+    return this.createURI(container, isContainer, slug);
   }
 
   /**
@@ -625,7 +753,7 @@ export class DataAccessorBasedStore implements ResourceStore {
     const slug = metadata.get(SOLID_HTTP.terms.slug)?.value;
     metadata.removeAll(SOLID_HTTP.terms.slug);
 
-    let newID: ResourceIdentifier = this.createURI(container, isContainer, slug);
+    let newID: ResourceIdentifier = await this.createIdentifier(container, isContainer, slug);
 
     // Solid, §5.3: "When a POST method request with the Slug header targets an auxiliary resource,
     // the server MUST respond with the 403 status code and response body describing the error."
@@ -638,7 +766,7 @@ export class DataAccessorBasedStore implements ResourceStore {
     const withSlash = { path: ensureTrailingSlash(newID.path) };
     const withoutSlash = { path: trimTrailingSlashes(newID.path) };
     if (await this.hasResource(withSlash) || await this.hasResource(withoutSlash)) {
-      newID = this.createURI(container, isContainer);
+      newID = await this.createIdentifier(container, isContainer);
     }
 
     return newID;
@@ -671,8 +799,11 @@ export class DataAccessorBasedStore implements ResourceStore {
   /**
    * Checks if the given container has any non-auxiliary resources.
    */
-  protected async hasProperChildren(container: ResourceIdentifier): Promise<boolean> {
-    for await (const child of this.accessor.getChildren(container)) {
+  protected async hasProperChildren(
+    container: ResourceIdentifier,
+    metadata: RepresentationMetadata,
+  ): Promise<boolean> {
+    for await (const child of this.getContainerChildren(container, metadata)) {
       if (!this.auxiliaryStrategy.isAuxiliaryIdentifier({ path: child.identifier.value })) {
         return true;
       }
@@ -714,7 +845,7 @@ export class DataAccessorBasedStore implements ResourceStore {
       // one of them, then the other URI MUST NOT correspond to another resource. Instead, the server MAY respond to
       // requests for the latter URI with a 301 redirect to the former."
       // https://solid.github.io/specification/protocol#uri-slash-semantics
-      if (!isContainerPath(metadata.identifier.value)) {
+      if (!this.isContainer({ path: metadata.identifier.value }, metadata)) {
         throw new ForbiddenHttpError(`Creating container ${container.path} conflicts with an existing resource.`);
       }
       return new IdentifierMap();

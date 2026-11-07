@@ -11,6 +11,7 @@ import { RepresentationMetadata } from '../../../src/http/representation/Represe
 import type { ResourceIdentifier } from '../../../src/http/representation/ResourceIdentifier';
 import type { DataAccessor } from '../../../src/storage/accessors/DataAccessor';
 import { DataAccessorBasedStore } from '../../../src/storage/DataAccessorBasedStore';
+import { FlatDataAccessorBasedStore } from '../../../src/storage/FlatDataAccessorBasedStore';
 import { INTERNAL_QUADS } from '../../../src/util/ContentTypes';
 import { BadRequestHttpError } from '../../../src/util/errors/BadRequestHttpError';
 import { ConflictHttpError } from '../../../src/util/errors/ConflictHttpError';
@@ -21,10 +22,22 @@ import { NotImplementedHttpError } from '../../../src/util/errors/NotImplemented
 import { PreconditionFailedHttpError } from '../../../src/util/errors/PreconditionFailedHttpError';
 import type { Guarded } from '../../../src/util/GuardedStream';
 import { ContentType } from '../../../src/util/Header';
+import { RootStorageLocationStrategy } from '../../../src/server/description/RootStorageLocationStrategy';
 import { SingleRootIdentifierStrategy } from '../../../src/util/identifiers/SingleRootIdentifierStrategy';
 import { trimTrailingSlashes } from '../../../src/util/PathUtil';
 import { guardedStreamFrom } from '../../../src/util/StreamUtil';
-import { AS, CONTENT_TYPE, DC, LDP, PIM, RDF, SOLID_AS, SOLID_HTTP, SOLID_META } from '../../../src/util/Vocabularies';
+import {
+  AS,
+  CONTENT_TYPE,
+  DC,
+  LDP,
+  LWS,
+  PIM,
+  RDF,
+  SOLID_AS,
+  SOLID_HTTP,
+  SOLID_META,
+} from '../../../src/util/Vocabularies';
 import { SimpleSuffixStrategy } from '../../util/SimpleSuffixStrategy';
 
 const GENERATED_PREDICATE = DF.namedNode('generated');
@@ -925,5 +938,109 @@ describe('A DataAccessorBasedStore', (): void => {
       accessor.data[resourceID.path] = representation;
       await expect(store.hasResource(metaResourceID)).resolves.toBeTruthy();
     });
+  });
+});
+
+describe('A FlatDataAccessorBasedStore', (): void => {
+  const root = 'http://test.com/';
+  let store: FlatDataAccessorBasedStore;
+  let accessor: SimpleDataAccessor;
+  let representation: Representation;
+
+  beforeEach(async(): Promise<void> => {
+    accessor = new SimpleDataAccessor();
+    store = new FlatDataAccessorBasedStore(
+      accessor,
+      new SingleRootIdentifierStrategy(root),
+      new SimpleSuffixStrategy('.dummy'),
+      new SimpleSuffixStrategy('.meta'),
+      new RootStorageLocationStrategy(root),
+    );
+
+    const containerMetadata = new RepresentationMetadata(
+      { [RDF.type]: [
+        DF.namedNode(LDP.Resource),
+        DF.namedNode(LDP.Container),
+        DF.namedNode(LDP.BasicContainer),
+      ]},
+    );
+    const rootMetadata = new RepresentationMetadata(containerMetadata);
+    rootMetadata.identifier = DF.namedNode(root);
+    accessor.data[root] = { metadata: rootMetadata } as Representation;
+
+    representation = {
+      binary: true,
+      data: guardedStreamFrom([ 'text' ]),
+      metadata: new RepresentationMetadata(
+        { [CONTENT_TYPE]: 'text/plain', [RDF.type]: DF.namedNode(LDP.Resource) },
+      ),
+      isEmpty: false,
+    };
+  });
+
+  it('allocates resources under the storage root and stores containment as metadata.', async(): Promise<void> => {
+    // Containers also get identifiers without a trailing slash.
+    const nestedRepresentation = new BasicRepresentation([], new RepresentationMetadata(
+      { [RDF.type]: [ DF.namedNode(LDP.Container), DF.namedNode(LDP.BasicContainer) ]},
+    ));
+    const nestedResult = await store.addResource({ path: root }, nestedRepresentation);
+    const nested = [ ...nestedResult.keys() ].find((identifier): boolean =>
+      identifier.path !== root &&
+      Boolean(nestedResult.get(identifier)?.has(SOLID_AS.terms.activity, AS.terms.Create)))!;
+    expect(nested.path).toMatch(new RegExp(`^${root}[^/]+$`, 'u'));
+    expect(accessor.data[nested.path].metadata.getAll(RDF.terms.type).map((term): string => term.value))
+      .toEqual(expect.arrayContaining([ LDP.Container, LDP.BasicContainer ]));
+
+    // A client-provided parent is ignored and replaced by the actual container.
+    representation.metadata.add(LWS.terms.partOf, DF.namedNode('http://example.com/wrong'));
+    const result = await store.addResource(nested, representation);
+    const created = [ ...result.keys() ].find((identifier): boolean =>
+      identifier.path !== nested.path && identifier.path !== root);
+    expect(created).toBeDefined();
+    expect(created!.path).toMatch(new RegExp(`^${root}[^/]+$`, 'u'));
+
+    expect(accessor.data[created!.path].metadata.getAll(LWS.terms.partOf).map((term): string => term.value))
+      .toEqual([ nested.path ]);
+    expect(accessor.data[nested.path].metadata.getAll(LWS.terms.contains).map((term): string => term.value))
+      .toContain(created!.path);
+    expect(result.get(created!)?.get(LWS.terms.partOf)?.value).toBe(nested.path);
+
+    // Container representations use the stored containment metadata.
+    const representationResult = await store.getRepresentation(nested);
+    const quads = await arrayifyStream<Quad>(representationResult.data);
+    const containment = new Store(quads).getObjects(DF.namedNode(nested.path), LDP.terms.contains, null)
+      .map((term): string => term.value);
+    expect(containment).toContain(created!.path);
+
+    // Stale containment metadata is ignored.
+    accessor.data[nested.path].metadata.add(LWS.terms.contains, DF.namedNode(`${root}missing`));
+    const staleResult = await store.getRepresentation(nested);
+    const staleQuads = new Store(await arrayifyStream<Quad>(staleResult.data))
+      .getObjects(DF.namedNode(nested.path), LDP.terms.contains, null)
+      .map((term): string => term.value);
+    expect(staleQuads).toEqual([ created!.path ]);
+
+    // Unexpected errors while reading a contained resource are not ignored.
+    const getMetadata = accessor.getMetadata.bind(accessor);
+    const spy = jest.spyOn(accessor, 'getMetadata').mockImplementation(async(identifier): Promise<any> => {
+      if (identifier.path === `${root}missing`) {
+        throw new Error('bad child');
+      }
+      return getMetadata(identifier);
+    });
+    await expect(store.getRepresentation(nested)).rejects.toThrow('bad child');
+    spy.mockRestore();
+
+    // Deleting a resource removes the containment metadata from its actual parent.
+    await store.deleteResource(created!);
+    expect(accessor.data[created!.path]).toBeUndefined();
+    expect(accessor.data[nested.path].metadata.getAll(LWS.terms.contains).map((term): string => term.value))
+      .not.toContain(created!.path);
+  });
+
+  it('can create a root container without parent metadata.', async(): Promise<void> => {
+    delete accessor.data[root];
+    await store.setRepresentation({ path: root }, new BasicRepresentation([], { path: root }));
+    expect(accessor.data[root].metadata.getAll(LWS.terms.partOf)).toHaveLength(0);
   });
 });

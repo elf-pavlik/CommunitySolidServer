@@ -40,6 +40,13 @@ describe('A ContainerToLwsJsonConverter', (): void => {
         .resolves.toBeUndefined();
     });
 
+    it('supports flat containers without a trailing slash.', async(): Promise<void> => {
+      const preferences: RepresentationPreferences = { type: { 'application/lws+json': 1 }};
+      representation.metadata.add(RDF.terms.type, LDP.terms.Container);
+      await expect(converter.canHandle({ identifier: { path: 'http://test.com/uuid' }, representation, preferences }))
+        .resolves.toBeUndefined();
+    });
+
     it('does not support documents.', async(): Promise<void> => {
       const preferences: RepresentationPreferences = { type: { 'application/lws+json': 1 }};
       await expect(converter.canHandle({ identifier: document, representation, preferences }))
@@ -163,6 +170,38 @@ describe('A ContainerToLwsJsonConverter', (): void => {
           { id: `${c}e`, type: 'DataResource', format: 'application/octet-stream' },
         ],
       });
+    });
+
+    it('uses LWS containment metadata.', async(): Promise<void> => {
+      const c = container.path;
+      representation = new BasicRepresentation([
+        DF.quad(DF.namedNode(c), LWS.terms.contains, DF.namedNode(`${c}lws`)),
+        DF.quad(DF.namedNode(c), LDP.terms.contains, DF.namedNode(`${c}ldp`)),
+      ], 'internal/quads', false);
+      const result = await converter.handle({
+        identifier: container,
+        representation,
+        preferences: { type: { 'application/lws+json': 1 }},
+      });
+      expect(itemIds(JSON.parse(await readableToString(result.data)))).toEqual([ `${c}lws` ]);
+    });
+
+    it('uses resource types for flat child containers.', async(): Promise<void> => {
+      const c = container.path;
+      const flatContainer = 'http://test.com/flat-container';
+      representation = new BasicRepresentation([
+        DF.quad(DF.namedNode(c), LDP.terms.contains, DF.namedNode(flatContainer)),
+        DF.quad(DF.namedNode(flatContainer), RDF.terms.type, LDP.terms.Container),
+        DF.quad(DF.namedNode(flatContainer), DC.terms.modified, DF.literal('2024-01-02T03:04:05Z')),
+      ], 'internal/quads', false);
+      const result = await converter.handle({
+        identifier: container,
+        representation,
+        preferences: { type: { 'application/lws+json': 1 }},
+      });
+      expect(JSON.parse(await readableToString(result.data)).items).toEqual([
+        { id: flatContainer, type: 'Container', modified: '2024-01-02T03:04:05.000Z' },
+      ]);
     });
 
     it('uses the best matching content type.', async(): Promise<void> => {

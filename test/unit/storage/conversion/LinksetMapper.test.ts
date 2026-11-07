@@ -44,6 +44,31 @@ describe('A LinksetMapper', (): void => {
       ]);
     });
 
+    it('uses the stored type for flat containers.', async(): Promise<void> => {
+      const flat = { path: 'http://test.com/flat-uuid' };
+      const quads = [
+        DF.quad(DF.namedNode(flat.path), RDF.terms.type, LDP.terms.Container),
+      ];
+      await expect(mapper.toLinks({ path: `${flat.path}.meta` }, quads)).resolves.toEqual([
+        { anchor: flat.path, rel: 'type', href: LDP.Container },
+        { anchor: flat.path, rel: 'up', href: 'http://test.com/' },
+        { anchor: flat.path, rel: 'type', href: LWS.Container },
+      ]);
+    });
+
+    it('uses stored parent metadata for the up link.', async(): Promise<void> => {
+      const flat = { path: 'http://test.com/flat-uuid' };
+      const parent = 'http://test.com/logical-container/';
+      const quads = [
+        DF.quad(DF.namedNode(flat.path), LWS.terms.partOf, DF.namedNode(parent)),
+      ];
+      await expect(mapper.toLinks({ path: `${flat.path}.meta` }, quads)).resolves.toEqual([
+        { anchor: flat.path, rel: LWS.partOf, href: parent },
+        { anchor: flat.path, rel: 'up', href: parent },
+        { anchor: flat.path, rel: 'type', href: LWS.DataResource },
+      ]);
+    });
+
     it('does not add a parent link for the root container.', async(): Promise<void> => {
       await expect(mapper.toLinks({ path: `${root}.meta` }, [])).resolves.toEqual([
         { anchor: root, rel: 'type', href: LWS.Container },

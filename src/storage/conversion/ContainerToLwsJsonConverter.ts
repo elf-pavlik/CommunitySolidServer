@@ -150,7 +150,7 @@ export class ContainerToLwsJsonConverter extends BaseTypedRepresentationConverte
   }
 
   public async canHandle(args: RepresentationConverterArgs): Promise<void> {
-    if (!isContainerPath(args.identifier.path)) {
+    if (!this.isContainer(args.identifier.path, args.representation.metadata)) {
       throw new NotImplementedHttpError('Can only convert containers.');
     }
     // No conversion is needed if the internal representation is acceptable
@@ -183,7 +183,8 @@ export class ContainerToLwsJsonConverter extends BaseTypedRepresentationConverte
     const store = await readableToQuads(representation.data);
     const container = identifier.path;
 
-    const children = store.getObjects(container, LDP.terms.contains, null)
+    const containment = store.getObjects(container, LWS.terms.contains, null);
+    const children = (containment.length > 0 ? containment : store.getObjects(container, LDP.terms.contains, null))
       .map((child): string => child.value)
       .sort();
 
@@ -272,6 +273,14 @@ export class ContainerToLwsJsonConverter extends BaseTypedRepresentationConverte
   }
 
   /**
+   * Determines whether the representation describes a container.
+   * Flat identifiers have no trailing slash, so the stored resource types are used as well.
+   */
+  private isContainer(identifier: string, metadata: RepresentationMetadata): boolean {
+    return isContainerPath(identifier) || metadata.has(RDF.terms.type, LDP.terms.Container);
+  }
+
+  /**
    * Returns the children on the requested page, and adds the pagination links to the metadata.
    * Containers with at most `pageSize` children are not paginated.
    */
@@ -314,7 +323,9 @@ export class ContainerToLwsJsonConverter extends BaseTypedRepresentationConverte
    * Generates the LWS description of a single contained resource based on the quads describing it.
    */
   protected describeChild(id: string, quads: Quad[]): LwsContainedResource {
-    const isContainer = isContainerPath(id);
+    const isContainer = isContainerPath(id) || quads.some((quad): boolean =>
+      quad.subject.value === id && quad.predicate.equals(RDF.terms.type) &&
+      quad.object.equals(LDP.terms.Container));
     const description: LwsContainedResource = { id, type: isContainer ? 'Container' : 'DataResource' };
 
     if (!isContainer) {

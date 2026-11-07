@@ -3,7 +3,7 @@ import type { Operation } from '../http/Operation';
 import { INTERNAL_QUADS } from '../util/ContentTypes';
 import { isContainerIdentifier } from '../util/PathUtil';
 import { readableToQuads } from '../util/StreamUtil';
-import { LDP, SOLID_HTTP } from '../util/Vocabularies';
+import { LDP, LWS, SOLID_HTTP } from '../util/Vocabularies';
 import type { ResourceStore } from './ResourceStore';
 
 /**
@@ -24,7 +24,10 @@ Promise<ResourceIdentifier[]> {
   const representation = await store.getRepresentation(container, { type: { [INTERNAL_QUADS]: 1 }});
   const quads = await readableToQuads(representation.data);
   const result: ResourceIdentifier[] = [];
-  for (const member of quads.getObjects(container.path, LDP.terms.contains, null)) {
+  // Containment can be stored with the LWS vocabulary when it is independent of the URI path.
+  const lwsMembers = quads.getObjects(container.path, LWS.terms.contains, null);
+  const members = lwsMembers.length > 0 ? lwsMembers : quads.getObjects(container.path, LDP.terms.contains, null);
+  for (const member of members) {
     const identifier = { path: member.value };
     if (isContainerIdentifier(identifier)) {
       result.push(...await findDescendants(store, identifier));

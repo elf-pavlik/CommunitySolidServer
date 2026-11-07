@@ -21,6 +21,8 @@ const SERVER_TYPE_NAMESPACES = [ LDP.namespace, LWS.namespace, PIM.namespace, IA
 const COMPUTED_RELATIONS = new Set([
   `${IANA_RELATION_NAMESPACE}up`,
   `${IANA_RELATION_NAMESPACE}linkset`,
+  LWS.contains,
+  LWS.partOf,
   LWS.storage,
 ]);
 
@@ -85,10 +87,18 @@ export class LinksetMapper {
 
     // LWS, §Metadata: "we consider the link to its parent container resource to be part of the metadata"
     if (!await this.isStorageRoot(subject)) {
-      const parent = this.identifierStrategy.getParentContainer(subject);
+      // A server that decouples containment from the URI path stores the parent as `lws:partOf` metadata.
+      const storedParent = [ ...quads ].find((quad): boolean =>
+        quad.subject.value === subject.path && quad.predicate.equals(LWS.terms.partOf));
+      const parent = storedParent ?
+          { path: storedParent.object.value } :
+          this.identifierStrategy.getParentContainer(subject);
       links.push({ anchor: subject.path, rel: 'up', href: parent.path });
     }
-    const type = isContainerIdentifier(subject) ? LWS.Container : LWS.DataResource;
+    const isContainer = isContainerIdentifier(subject) || [ ...quads ].some((quad): boolean =>
+      quad.subject.value === subject.path && quad.predicate.equals(RDF.terms.type) &&
+      quad.object.equals(LDP.terms.Container));
+    const type = isContainer ? LWS.Container : LWS.DataResource;
     links.push({ anchor: subject.path, rel: 'type', href: type });
 
     return links;
@@ -147,7 +157,8 @@ export class LinksetMapper {
       return true;
     }
     const predicate = quad.predicate.value;
-    if (predicate.startsWith(INTERNAL_NAMESPACE) || predicate === LDP.contains) {
+    if (predicate.startsWith(INTERNAL_NAMESPACE) || predicate === LDP.contains ||
+      predicate === LWS.contains || predicate === LWS.partOf) {
       return true;
     }
     return predicate === RDF.type &&

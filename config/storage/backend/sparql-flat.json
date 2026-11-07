@@ -1,0 +1,27 @@
+{
+  "@context": "https://linkedsoftwaredependencies.org/bundles/npm/@solid/community-server/^8.0.0/components/context.jsonld",
+  "import": [
+    "css:config/storage/backend/data-accessors/sparql-endpoint.json"
+  ],
+  "@graph": [
+    {
+      "comment": "A store that allocates every new resource directly under its storage root with a UUID, and stores containment as lws:contains metadata.",
+      "@id": "urn:solid-server:default:ResourceStore_Backend",
+      "@type": "FlatDataAccessorBasedStore",
+      "identifierStrategy": { "@id": "urn:solid-server:default:IdentifierStrategy" },
+      "auxiliaryStrategy": { "@id": "urn:solid-server:default:AuxiliaryStrategy" },
+      "accessor": { "@id": "urn:solid-server:default:SparqlDataAccessor" },
+      "metadataStrategy": { "@id": "urn:solid-server:default:MetadataStrategy" },
+      "storageStrategy": { "@id": "urn:solid-server:default:StorageLocationStrategy" }
+    },
+    {
+      "comment": "This makes it so all incoming data is converted to quad objects.",
+      "@id": "urn:solid-server:default:ResourceStore_Converting",
+      "@type": "RepresentationConvertingStore",
+      "options_inPreferences_type": {
+        "RepresentationConvertingStore:_options_inPreferences_type_key": "internal/quads",
+        "RepresentationConvertingStore:_options_inPreferences_type_value": 1
+      }
+    }
+  ]
+}

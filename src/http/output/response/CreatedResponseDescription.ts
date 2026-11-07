@@ -8,8 +8,13 @@ import { ResponseDescription } from './ResponseDescription';
  * Corresponds to a 201 response, containing the relevant location metadata.
  */
 export class CreatedResponseDescription extends ResponseDescription {
-  public constructor(location: ResourceIdentifier) {
-    const metadata = new RepresentationMetadata({ [SOLID_HTTP.location]: DataFactory.namedNode(location.path) });
-    super(201, metadata);
+  public constructor(location: ResourceIdentifier, metadata?: RepresentationMetadata) {
+    const result = new RepresentationMetadata(location, {
+      [SOLID_HTTP.location]: DataFactory.namedNode(location.path),
+    });
+    if (metadata) {
+      result.addQuads(metadata.quads());
+    }
+    super(201, result);
   }
 }

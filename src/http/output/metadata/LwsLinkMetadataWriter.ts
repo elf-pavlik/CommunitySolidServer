@@ -92,11 +92,15 @@ export class LwsLinkMetadataWriter extends MetadataWriter {
     // LWS, §Containment: "Servers MUST include a Link header with rel="up" pointing to the parent container
     // in responses to GET and HEAD requests on any non-root resource."
     if (storage?.path !== identifier.path && !this.identifierStrategy.isRootContainer(identifier)) {
-      const parent = this.identifierStrategy.getParentContainer(identifier);
+      // A server that decouples containment from the URI path stores the parent as `lws:partOf` metadata.
+      const storedParent = metadata.get(LWS.terms.partOf)?.value;
+      const parent = storedParent ? { path: storedParent } : this.identifierStrategy.getParentContainer(identifier);
       addHeader(response, 'Link', `<${parent.path}>; rel="up"`);
     }
 
-    const type = isContainerIdentifier(identifier) ? LWS.Container : LWS.DataResource;
+    const isContainer = isContainerIdentifier(identifier) ||
+      metadata.has(RDF.terms.type, LDP.terms.Container);
+    const type = isContainer ? LWS.Container : LWS.DataResource;
     if (!metadata.has(RDF.terms.type, type)) {
       addHeader(response, 'Link', `<${type}>; rel="type"`);
     }

@@ -10,7 +10,7 @@ import type { ActivityEmitter } from '../../../../src/server/notifications/Activ
 import type { ResourceStore } from '../../../../src/storage/ResourceStore';
 import { INTERNAL_QUADS } from '../../../../src/util/ContentTypes';
 import { NotFoundHttpError } from '../../../../src/util/errors/NotFoundHttpError';
-import { AS, LDP } from '../../../../src/util/Vocabularies';
+import { AS, LDP, LWS } from '../../../../src/util/Vocabularies';
 
 jest.mock('global-logger-factory', (): any => {
   const logger: Logger = { warn: jest.fn() } as any;
@@ -96,6 +96,14 @@ describe('An AccessGrantIndex', (): void => {
       new BasicRepresentation([ missing ], identifier, INTERNAL_QUADS));
     await expect(index.getGrants(storage)).resolves.toEqual([]);
     expect(logger.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses LWS containment metadata.', async(): Promise<void> => {
+    store.getRepresentation.mockImplementationOnce(async(identifier): Promise<BasicRepresentation> =>
+      new BasicRepresentation([
+        DF.quad(DF.namedNode(container), LWS.terms.contains, DF.namedNode(grant1)),
+      ], identifier, INTERNAL_QUADS));
+    await expect(index.getGrants(storage)).resolves.toHaveLength(1);
   });
 
   it('caches the grants.', async(): Promise<void> => {

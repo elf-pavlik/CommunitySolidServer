@@ -83,6 +83,26 @@ describe('A LwsLinkMetadataWriter', (): void => {
     ]);
   });
 
+  it('uses the stored type to add the container type for flat identifiers.', async(): Promise<void> => {
+    const metadata = resourceMetadata('http://example.com/uuid');
+    metadata.add(RDF.terms.type, LDP.terms.Container);
+    await expect(writer.handle({ response, metadata })).resolves.toBeUndefined();
+    expect(links()).toEqual([
+      `<http://example.com/>; rel="${LWS.storage}"`,
+      '<http://example.com/>; rel="up"',
+      `<${LWS.Container}>; rel="type"`,
+      '<http://example.com/uuid.linkset>; rel="linkset"; type="application/linkset+json"',
+    ]);
+  });
+
+  it('uses the stored parent metadata for the up link.', async(): Promise<void> => {
+    const metadata = resourceMetadata('http://example.com/flat-uuid');
+    metadata.add(LWS.terms.partOf, 'http://example.com/logical-container/');
+    await expect(writer.handle({ response, metadata })).resolves.toBeUndefined();
+    expect(links()).toContain('<http://example.com/logical-container/>; rel="up"');
+    expect(identifierStrategy.getParentContainer).toHaveBeenCalledTimes(0);
+  });
+
   it('does not add the type link if the metadata already contains that type.', async(): Promise<void> => {
     const metadata = resourceMetadata('http://example.com/foo/');
     metadata.add(RDF.terms.type, LWS.terms.Container);

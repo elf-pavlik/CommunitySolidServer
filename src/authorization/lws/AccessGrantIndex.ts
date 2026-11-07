@@ -6,7 +6,7 @@ import { INTERNAL_QUADS } from '../../util/ContentTypes';
 import { createErrorMessage } from '../../util/errors/ErrorUtil';
 import { joinUrl } from '../../util/PathUtil';
 import { readableToQuads, readableToString } from '../../util/StreamUtil';
-import { LDP } from '../../util/Vocabularies';
+import { LDP, LWS } from '../../util/Vocabularies';
 import type { AccessDocument } from './AccessGrantUtil';
 import { validateAccessDocument } from './AccessGrantUtil';
 
@@ -81,7 +81,10 @@ export class AccessGrantIndex {
     }
     const representation = await this.store.getRepresentation(container, { type: { [INTERNAL_QUADS]: 1 }});
     const quads = await readableToQuads(representation.data);
-    const members = quads.getObjects(container.path, LDP.terms.contains, null).map((term): string => term.value);
+    // Containment can be stored with the LWS vocabulary when it is independent of the URI path.
+    const lwsMembers = quads.getObjects(container.path, LWS.terms.contains, null);
+    const members = (lwsMembers.length > 0 ? lwsMembers : quads.getObjects(container.path, LDP.terms.contains, null))
+      .map((term): string => term.value);
 
     const grants: StoredAccessGrant[] = [];
     for (const member of members) {

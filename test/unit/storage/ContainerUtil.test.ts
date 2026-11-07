@@ -5,7 +5,7 @@ import type { ResourceIdentifier } from '../../../src/http/representation/Resour
 import { findDescendants, isRecursiveDelete } from '../../../src/storage/ContainerUtil';
 import type { ResourceStore } from '../../../src/storage/ResourceStore';
 import { INTERNAL_QUADS } from '../../../src/util/ContentTypes';
-import { LDP, SOLID_HTTP } from '../../../src/util/Vocabularies';
+import { LDP, LWS, SOLID_HTTP } from '../../../src/util/Vocabularies';
 
 describe('ContainerUtil', (): void => {
   describe('#isRecursiveDelete', (): void => {
@@ -79,6 +79,15 @@ describe('ContainerUtil', (): void => {
 
     it('returns an empty list for an empty container.', async(): Promise<void> => {
       await expect(findDescendants(store, { path: `${root}sub/empty/` })).resolves.toEqual([]);
+    });
+
+    it('prefers LWS containment metadata.', async(): Promise<void> => {
+      store.getRepresentation.mockImplementationOnce(async(identifier): Promise<BasicRepresentation> =>
+        new BasicRepresentation([
+          DF.quad(DF.namedNode(identifier.path), LWS.terms.contains, DF.namedNode(`${identifier.path}lws`)),
+          DF.quad(DF.namedNode(identifier.path), LDP.terms.contains, DF.namedNode(`${identifier.path}ldp`)),
+        ], identifier, INTERNAL_QUADS));
+      await expect(findDescendants(store, { path: root })).resolves.toEqual([{ path: `${root}lws` }]);
     });
   });
 });
