@@ -166,6 +166,15 @@ describe.each(configurations)('A flat Linked Web Storage server with $name', (co
       expect(getLinks(response)).toContain(`<${level.container}>; rel="up"`);
       level.resource = location;
     }
+    const level0Resource = levels[0].resource!;
+
+    // Auxiliary resources are not container members: writing the ACL of a contained resource
+    // must not add containment metadata to its container, and must not show up in its listing.
+    await new AclHelper(store).setSimpleAcl(level0Resource, {
+      permissions: [ 'read', 'write', 'control' ],
+      agentClass: 'agent',
+      accessTo: true,
+    });
 
     // The stored containment metadata follows the logical hierarchy, not the flat URI space.
     const first = levels[0].container;
@@ -175,6 +184,7 @@ describe.each(configurations)('A flat Linked Web Storage server with $name', (co
     const contained = quads.getObjects(first, LWS.terms.contains, null).map((term): string => term.value);
     expect(contained).toEqual(expect.arrayContaining([ second, levels[0].resource! ]));
     expect(contained).not.toContain(levels[2].container);
+    expect(contained).not.toContain(`${level0Resource}.acl`);
 
     // The container listing uses the metadata containment as well.
     let response = await request(first, { headers: { accept: 'application/lws+json' }});
@@ -184,6 +194,8 @@ describe.each(configurations)('A flat Linked Web Storage server with $name', (co
       .toEqual(expect.arrayContaining([ second, levels[0].resource! ]));
     expect(body.items.map((item: { id: string }): string => item.id))
       .not.toContain(levels[2].container);
+    expect(body.items.map((item: { id: string }): string => item.id))
+      .not.toContain(`${level0Resource}.acl`);
 
     // Replace two data resources with PUT.
     for (const level of [ levels[0], levels[1] ]) {

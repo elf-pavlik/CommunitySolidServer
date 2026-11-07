@@ -12,6 +12,7 @@ import type { ResourceIdentifier } from '../../../src/http/representation/Resour
 import type { DataAccessor } from '../../../src/storage/accessors/DataAccessor';
 import { DataAccessorBasedStore } from '../../../src/storage/DataAccessorBasedStore';
 import { FlatDataAccessorBasedStore } from '../../../src/storage/FlatDataAccessorBasedStore';
+import { HonorUuidSlugDataAccessorBasedStore } from '../../../src/storage/HonorUuidSlugDataAccessorBasedStore';
 import { INTERNAL_QUADS } from '../../../src/util/ContentTypes';
 import { BadRequestHttpError } from '../../../src/util/errors/BadRequestHttpError';
 import { ConflictHttpError } from '../../../src/util/errors/ConflictHttpError';
@@ -1042,5 +1043,113 @@ describe('A FlatDataAccessorBasedStore', (): void => {
     delete accessor.data[root];
     await store.setRepresentation({ path: root }, new BasicRepresentation([], { path: root }));
     expect(accessor.data[root].metadata.getAll(LWS.terms.partOf)).toHaveLength(0);
+  });
+});
+
+describe('A HonorUuidSlugDataAccessorBasedStore', (): void => {
+  const root = 'http://test.com/';
+  const dataSlug = '123e4567-e89b-42d3-a456-426614174000';
+  const containerSlug = '123e4567-e89b-42d3-a456-426614174001';
+  let store: HonorUuidSlugDataAccessorBasedStore;
+  let accessor: SimpleDataAccessor;
+  let representation: Representation;
+
+  beforeEach(async(): Promise<void> => {
+    accessor = new SimpleDataAccessor();
+    store = new HonorUuidSlugDataAccessorBasedStore(
+      accessor,
+      new SingleRootIdentifierStrategy(root),
+      new SimpleSuffixStrategy('.dummy'),
+      new SimpleSuffixStrategy('.meta'),
+      new RootStorageLocationStrategy(root),
+    );
+
+    const containerMetadata = new RepresentationMetadata(
+      { [RDF.type]: [
+        DF.namedNode(LDP.Resource),
+        DF.namedNode(LDP.Container),
+        DF.namedNode(LDP.BasicContainer),
+      ]},
+    );
+    const rootMetadata = new RepresentationMetadata(containerMetadata);
+    rootMetadata.identifier = DF.namedNode(root);
+    accessor.data[root] = { metadata: rootMetadata } as Representation;
+
+    representation = {
+      binary: true,
+      data: guardedStreamFrom([ 'text' ]),
+      metadata: new RepresentationMetadata(
+        { [CONTENT_TYPE]: 'text/plain', [RDF.type]: DF.namedNode(LDP.Resource) },
+      ),
+      isEmpty: false,
+    };
+  });
+
+  it('uses a random UUID if there is no slug.', async(): Promise<void> => {
+    const result = await store.addResource({ path: root }, representation);
+    const created = [ ...result.keys() ].find((identifier): boolean =>
+      identifier.path !== root && Boolean(result.get(identifier)?.has(SOLID_AS.terms.activity, AS.terms.Create)));
+    expect(created!.path).toMatch(new RegExp(`^${root}[^/]+$`, 'u'));
+  });
+
+  it('honors a UUID slug for data resources.', async(): Promise<void> => {
+    representation.metadata.add(SOLID_HTTP.terms.slug, dataSlug);
+    const result = await store.addResource({ path: root }, representation);
+    expect([ ...result.keys() ].map((identifier): string => identifier.path)).toContain(`${root}${dataSlug}`);
+    expect(accessor.data[`${root}${dataSlug}`]).toBeDefined();
+  });
+
+  it('honors a UUID slug for containers without a trailing slash.', async(): Promise<void> => {
+    representation.metadata.add(RDF.terms.type, LDP.terms.Container);
+    representation.metadata.add(SOLID_HTTP.terms.slug, containerSlug);
+    const result = await store.addResource({ path: root }, representation);
+    expect([ ...result.keys() ].map((identifier): string => identifier.path)).toContain(`${root}${containerSlug}`);
+    expect(accessor.data[`${root}${containerSlug}`]).toBeDefined();
+    expect(accessor.data[`${root}${containerSlug}`].metadata.getAll(RDF.terms.type)
+      .map((term): string => term.value)).toContain(LDP.Container);
+  });
+
+  it('rejects UUID slugs with a trailing slash.', async(): Promise<void> => {
+    representation.metadata.add(RDF.terms.type, LDP.terms.Container);
+    representation.metadata.add(SOLID_HTTP.terms.slug, `${containerSlug}/`);
+    await expect(store.addResource({ path: root }, representation)).rejects.toThrow(BadRequestHttpError);
+  });
+
+  it('rejects slugs that are not UUIDs.', async(): Promise<void> => {
+    representation.metadata.add(SOLID_HTTP.terms.slug, 'not-a-uuid');
+    await expect(store.addResource({ path: root }, representation)).rejects.toThrow(BadRequestHttpError);
+  });
+
+  it('returns a conflict if the requested UUID already exists.', async(): Promise<void> => {
+    representation.metadata.add(SOLID_HTTP.terms.slug, dataSlug);
+    await store.addResource({ path: root }, representation);
+
+    representation = {
+      binary: true,
+      data: guardedStreamFrom([ 'text' ]),
+      metadata: new RepresentationMetadata(
+        { [CONTENT_TYPE]: 'text/plain', [RDF.type]: DF.namedNode(LDP.Resource) },
+      ),
+      isEmpty: false,
+    };
+    representation.metadata.add(SOLID_HTTP.terms.slug, dataSlug);
+    await expect(store.addResource({ path: root }, representation)).rejects.toThrow(ConflictHttpError);
+
+    representation.metadata.removeAll(RDF.terms.type);
+    representation.metadata.add(RDF.terms.type, LDP.terms.Container);
+    representation.metadata.removeAll(SOLID_HTTP.terms.slug);
+    representation.metadata.add(SOLID_HTTP.terms.slug, containerSlug);
+    await store.addResource({ path: root }, representation);
+
+    representation = {
+      binary: false,
+      data: guardedStreamFrom([]),
+      metadata: new RepresentationMetadata(
+        { [RDF.type]: [ DF.namedNode(LDP.Container), DF.namedNode(LDP.BasicContainer) ]},
+      ),
+      isEmpty: true,
+    };
+    representation.metadata.add(SOLID_HTTP.terms.slug, containerSlug);
+    await expect(store.addResource({ path: root }, representation)).rejects.toThrow(ConflictHttpError);
   });
 });

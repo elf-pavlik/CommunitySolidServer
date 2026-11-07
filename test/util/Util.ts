@@ -18,6 +18,7 @@ const portNames = [
   'LinkedWebStorage',
   'LinkedWebStorageFlat',
   'LinkedWebStorageFlatSubdomain',
+  'LinkedWebStorageFlatSlug',
   'LinkedWebStorageInbox',
   'LpdHandlerWithAuth',
   'LpdHandlerWithoutAuth',

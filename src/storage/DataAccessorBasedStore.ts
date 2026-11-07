@@ -606,10 +606,16 @@ export class DataAccessorBasedStore implements ResourceStore {
 
   /**
    * Adds containment metadata to the given container and updates its modified date.
+   * Auxiliary resources (access control, description) are not contained resources: Solid §4.3
+   * has clients discover them through the subject's Link header, and the container representation
+   * filters them out of `ldp:contains` (see {@link getRepresentation}).
    */
   protected async addContainedResource(container: ResourceIdentifier, resource: ResourceIdentifier): Promise<void> {
     if (!this.storesContainmentMetadata()) {
       await this.updateContainerModifiedDate(container);
+      return;
+    }
+    if (this.auxiliaryStrategy.isAuxiliaryIdentifier(resource)) {
       return;
     }
 
@@ -626,6 +632,9 @@ export class DataAccessorBasedStore implements ResourceStore {
   protected async removeContainedResource(container: ResourceIdentifier, resource: ResourceIdentifier): Promise<void> {
     if (!this.storesContainmentMetadata()) {
       await this.updateContainerModifiedDate(container);
+      return;
+    }
+    if (this.auxiliaryStrategy.isAuxiliaryIdentifier(resource)) {
       return;
     }
 
@@ -668,6 +677,12 @@ export class DataAccessorBasedStore implements ResourceStore {
     }
 
     for (const child of metadata.getAll(LWS.terms.contains)) {
+      // Auxiliary resources are never container members, even when an older container still
+      // has a `lws:contains` triple for one of them (written before the guard in
+      // {@link addContainedResource}).
+      if (this.auxiliaryStrategy.isAuxiliaryIdentifier({ path: child.value })) {
+        continue;
+      }
       const identifier = { path: child.value };
       try {
         yield await this.accessor.getMetadata(identifier);

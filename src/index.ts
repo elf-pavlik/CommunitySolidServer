@@ -570,6 +570,7 @@ export * from './storage/CachedResourceStore';
 export * from './storage/ContainerUtil';
 export * from './storage/DataAccessorBasedStore';
 export * from './storage/FlatDataAccessorBasedStore';
+export * from './storage/HonorUuidSlugDataAccessorBasedStore';
 export * from './storage/IndexRepresentationStore';
 export * from './storage/LockingResourceStore';
 export * from './storage/MonitoringStore';

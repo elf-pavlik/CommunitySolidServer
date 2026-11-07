@@ -25,7 +25,7 @@ import { DataAccessorBasedStore } from './DataAccessorBasedStore';
  * as those identifiers are part of the Solid data model.
  */
 export class FlatDataAccessorBasedStore extends DataAccessorBasedStore {
-  private readonly storageStrategy: StorageLocationStrategy;
+  protected readonly storageStrategy: StorageLocationStrategy;
 
   /**
    * @param accessor - Backend used to store the resources.
