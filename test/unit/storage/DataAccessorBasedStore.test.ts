@@ -1039,6 +1039,26 @@ describe('A FlatDataAccessorBasedStore', (): void => {
       .not.toContain(created!.path);
   });
 
+  it('does not store containment metadata for auxiliary resources.', async(): Promise<void> => {
+    const auxiliary = { path: `${root}resource.dummy` };
+    await store.setRepresentation(auxiliary, new BasicRepresentation('text', {
+      [CONTENT_TYPE]: 'text/plain',
+      [RDF.type]: DF.namedNode(LDP.Resource),
+    }));
+    expect(accessor.data[root].metadata.getAll(LWS.terms.contains)).toHaveLength(0);
+
+    // Existing containment metadata for an auxiliary resource is also ignored when listing children.
+    accessor.data[root].metadata.add(LWS.terms.contains, DF.namedNode(auxiliary.path));
+    const result = await store.getRepresentation({ path: root });
+    const quads = await arrayifyStream<Quad>(result.data);
+    const containment = new Store(quads).getObjects(DF.namedNode(root), LDP.terms.contains, null)
+      .map((term): string => term.value);
+    expect(containment).not.toContain(auxiliary.path);
+
+    await store.deleteResource(auxiliary);
+    expect(accessor.data[auxiliary.path]).toBeUndefined();
+  });
+
   it('can create a root container without parent metadata.', async(): Promise<void> => {
     delete accessor.data[root];
     await store.setRepresentation({ path: root }, new BasicRepresentation([], { path: root }));

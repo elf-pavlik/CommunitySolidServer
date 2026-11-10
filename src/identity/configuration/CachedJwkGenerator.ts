@@ -21,6 +21,8 @@ export class CachedJwkGenerator implements JwkGenerator {
 
   private privateJwk?: AlgJwk;
   private publicJwk?: AlgJwk;
+  private privateJwkPromise?: Promise<AlgJwk>;
+  private publicJwkPromise?: Promise<AlgJwk>;
 
   public constructor(alg: AsymmetricSigningAlgorithm, storageKey: string, storage: KeyValueStorage<string, JWKS>) {
     this.alg = alg;
@@ -33,23 +35,36 @@ export class CachedJwkGenerator implements JwkGenerator {
       return this.privateJwk;
     }
 
-    // We store in JWKS format for backwards compatibility reasons.
-    // If we want to just store the key instead we will need some way to do the migration.
-    const jwks = await this.storage.get(this.key);
-    if (jwks) {
-      this.privateJwk = jwks.keys[0] as AlgJwk;
-      return this.privateJwk;
+    // Cache the in-flight generation/load promise: several requests can need the key
+    // at the same time on a fresh server, and each must get the same key.
+    this.privateJwkPromise ??= this.loadPrivateKey();
+    return this.privateJwkPromise;
+  }
+
+  private async loadPrivateKey(): Promise<AlgJwk> {
+    try {
+      // We store in JWKS format for backwards compatibility reasons.
+      // If we want to just store the key instead we will need some way to do the migration.
+      const jwks = await this.storage.get(this.key);
+      if (jwks) {
+        this.privateJwk = jwks.keys[0] as AlgJwk;
+        return this.privateJwk;
+      }
+
+      const { privateKey } = await generateKeyPair(this.alg);
+
+      // Make sure the JWK is a plain node object for storage
+      const privateJwk = { ...await exportJWK(privateKey) } as AlgJwk;
+      privateJwk.alg = this.alg;
+
+      await this.storage.set(this.key, { keys: [ privateJwk ]});
+      this.privateJwk = privateJwk;
+      return privateJwk;
+    } catch (error: unknown) {
+      // Allow a later request to retry after a transient storage/generation failure.
+      this.privateJwkPromise = undefined;
+      throw error;
     }
-
-    const { privateKey } = await generateKeyPair(this.alg);
-
-    // Make sure the JWK is a plain node object for storage
-    const privateJwk = { ...await exportJWK(privateKey) } as AlgJwk;
-    privateJwk.alg = this.alg;
-
-    await this.storage.set(this.key, { keys: [ privateJwk ]});
-    this.privateJwk = privateJwk;
-    return privateJwk;
   }
 
   public async getPublicKey(): Promise<AlgJwk> {
@@ -57,20 +72,32 @@ export class CachedJwkGenerator implements JwkGenerator {
       return this.publicJwk;
     }
 
-    const privateJwk = await this.getPrivateKey();
+    // Same in-flight promise cache as for the private key, so concurrent callers
+    // can never derive public keys from different private keys.
+    this.publicJwkPromise ??= this.loadPublicKey();
+    return this.publicJwkPromise;
+  }
 
-    // The main reason we generate the public key from the private key is, so we don't have to store it.
-    // This allows our storage to not break previous versions where we only used the private key.
-    // In practice this results in the same key.
-    const privateKey = await importJWK(privateJwk);
-    const publicKey = createPublicKey(privateKey as KeyObject);
+  private async loadPublicKey(): Promise<AlgJwk> {
+    try {
+      const privateJwk = await this.getPrivateKey();
 
-    const publicJwk = { ...await exportJWK(publicKey) } as AlgJwk;
-    // These fields get lost during the above proces
-    publicJwk.alg = privateJwk.alg;
+      // The main reason we generate the public key from the private key is, so we don't have to store it.
+      // This allows our storage to not break previous versions where we only used the private key.
+      // In practice this results in the same key.
+      const privateKey = await importJWK(privateJwk);
+      const publicKey = createPublicKey(privateKey as KeyObject);
 
-    this.publicJwk = publicJwk;
+      const publicJwk = { ...await exportJWK(publicKey) } as AlgJwk;
+      // These fields get lost during the above proces
+      publicJwk.alg = privateJwk.alg;
 
-    return publicJwk;
+      this.publicJwk = publicJwk;
+
+      return publicJwk;
+    } catch (error: unknown) {
+      this.publicJwkPromise = undefined;
+      throw error;
+    }
   }
 }

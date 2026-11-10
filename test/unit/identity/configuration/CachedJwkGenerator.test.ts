@@ -71,6 +71,46 @@ describe('A CachedJwkGenerator', (): void => {
     spy.mockRestore();
   });
 
+  it('returns the same key for concurrent private key requests.', async(): Promise<void> => {
+    const spy = jest.spyOn(jose, 'generateKeyPair');
+    const privateKeys = await Promise.all(
+      Array.from({ length: 5 }, async(): Promise<AlgJwk> => generator.getPrivateKey()),
+    );
+
+    expect(new Set(privateKeys.map((key): string | undefined => key.x)).size).toBe(1);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(storage.set).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+  });
+
+  it('derives public keys from the same private key for concurrent requests.', async(): Promise<void> => {
+    const spy = jest.spyOn(jose, 'generateKeyPair');
+    const [ privateKey, ...publicKeys ] = await Promise.all([
+      generator.getPrivateKey(),
+      ...Array.from({ length: 5 }, async(): Promise<AlgJwk> => generator.getPublicKey()),
+    ]);
+
+    expect(new Set(publicKeys.map((key): string | undefined => key.x)).size).toBe(1);
+    const signed = await new SignJWT({ data: 'signed data' })
+      .setProtectedHeader({ alg })
+      .sign(await importJWK(privateKey));
+    await expect(jwtVerify(signed, await importJWK(publicKeys[0]))).resolves.toBeDefined();
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+  });
+
+  it('retries after a failed key load.', async(): Promise<void> => {
+    storage.get.mockRejectedValueOnce(new Error('storage unavailable'));
+    await expect(generator.getPrivateKey()).rejects.toThrow('storage unavailable');
+    await expect(generator.getPrivateKey()).resolves.toEqual(expect.objectContaining({ alg }));
+  });
+
+  it('retries after a failed public key load.', async(): Promise<void> => {
+    storage.get.mockRejectedValueOnce(new Error('storage unavailable'));
+    await expect(generator.getPublicKey()).rejects.toThrow('storage unavailable');
+    await expect(generator.getPublicKey()).resolves.toEqual(expect.objectContaining({ alg }));
+  });
+
   it('caches the key in storage in case of server restart.', async(): Promise<void> => {
     const spy = jest.spyOn(jose, 'generateKeyPair');
     const privateKey = await generator.getPrivateKey();
