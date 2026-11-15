@@ -68,6 +68,10 @@ export interface VerifiedSubject {
    * The JSON-LD context of {@link access}.
    */
   accessContext?: string;
+  /**
+   * The verified OAuth actor chain (`act`) carried by the subject token.
+   */
+  act?: unknown;
 }
 
 /**

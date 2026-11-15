@@ -155,6 +155,7 @@ export class LwsTokenHttpHandler extends HttpHandler {
       accessToken = await this.issuer.issue(subject.subject, subject.client, resource, {
         context: subject.accessContext!,
         access: subject.access,
+        ...subject.act === undefined ? {} : { act: subject.act },
       });
     }
     this.logger.info(`Issued an access token for ${resource} to ${subject.subject} using client ${subject.client}`);

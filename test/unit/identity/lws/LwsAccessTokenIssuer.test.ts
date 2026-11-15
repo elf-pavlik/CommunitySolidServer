@@ -62,12 +62,14 @@ describe('An LwsAccessTokenIssuer', (): void => {
     const claim = {
       context: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
       access: [{ id: 'urn:policy' }],
+      act: { sub: 'https://id/bob', act: { sub: client }},
     };
     const token = await issuer.issue(subject, client, storage, claim);
     const { payload } = await jwtVerify(token, await importJWK(await jwkGenerator.getPublicKey(), 'ES256'));
     expect(payload).toMatchObject({
       '@context': claim.context,
       access: claim.access,
+      act: claim.act,
     });
   });
 

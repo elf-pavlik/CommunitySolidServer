@@ -166,6 +166,23 @@ describe('An LwsTokenHttpHandler', (): void => {
 
   it('copies a verified access claim into the access token.', async(): Promise<void> => {
     const access = [ 'urn:policy' ];
+    const act = { sub: subject.subject, act: { sub: subject.client }};
+    verifier.handleSafe.mockResolvedValueOnce({
+      ...subject,
+      access,
+      accessContext: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
+      act,
+    });
+    await expect(handle()).resolves.toMatchObject({ access_token: 'access-token' });
+    expect(issuer.issue).toHaveBeenLastCalledWith(subject.subject, subject.client, storage, {
+      context: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
+      access,
+      act,
+    });
+  });
+
+  it('does not add an actor chain when the subject token has none.', async(): Promise<void> => {
+    const access = [ 'urn:policy' ];
     verifier.handleSafe.mockResolvedValueOnce({
       ...subject,
       access,

@@ -25,6 +25,8 @@ export interface LwsAccessClaim {
   context: string;
   /** Compact JSON-LD ODRL policies. */
   access: unknown;
+  /** Verified OAuth actor chain (delegation mode). */
+  act?: unknown;
 }
 
 /**
@@ -86,6 +88,9 @@ export class LwsAccessTokenIssuer {
     if (claim) {
       payload['@context'] = claim.context;
       payload.access = claim.access;
+      if (claim.act !== undefined) {
+        payload.act = claim.act;
+      }
     }
     return new SignJWT(payload)
       .setProtectedHeader({ alg: this.jwkGenerator.alg, typ: 'at+jwt', kid })

@@ -156,6 +156,9 @@ export class LwsAccessTokenExtractor extends CredentialsExtractor {
       if (typeof context === 'string') {
         credentials.accessContext = context;
       }
+      if (payload.act !== undefined) {
+        credentials.act = payload.act;
+      }
     }
     return credentials;
   }

@@ -117,6 +117,7 @@ describe('An LwsAccessTokenExtractor', (): void => {
       const claim = {
         context: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
         access: [{ id: 'urn:policy' }],
+        act: { sub: 'https://id/bob', act: { sub: client }},
       };
       const token = await issuer.issue(subject, client, storage, claim);
       await expect(extractor.handle(createRequest(token))).resolves.toEqual({
@@ -126,6 +127,7 @@ describe('An LwsAccessTokenExtractor', (): void => {
         storage: { path: storage },
         access: claim.access,
         accessContext: claim.context,
+        act: claim.act,
       });
     });
 
