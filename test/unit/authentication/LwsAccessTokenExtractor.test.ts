@@ -113,6 +113,34 @@ describe('An LwsAccessTokenExtractor', (): void => {
       expect(fetchMock).toHaveBeenCalledTimes(0);
     });
 
+    it('returns the access claim carried by the token.', async(): Promise<void> => {
+      const claim = {
+        context: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
+        access: [{ id: 'urn:policy' }],
+      };
+      const token = await issuer.issue(subject, client, storage, claim);
+      await expect(extractor.handle(createRequest(token))).resolves.toEqual({
+        agent: { webId: subject },
+        client: { clientId: client },
+        issuer: { url: 'https://storage.example/' },
+        storage: { path: storage },
+        access: claim.access,
+        accessContext: claim.context,
+      });
+    });
+
+    it('returns an access claim without a context unchanged.', async(): Promise<void> => {
+      const access = [{ id: 'urn:policy' }];
+      const token = await issuer.issue(subject, client, storage, { access } as any);
+      await expect(extractor.handle(createRequest(token))).resolves.toEqual({
+        agent: { webId: subject },
+        client: { clientId: client },
+        issuer: { url: 'https://storage.example/' },
+        storage: { path: storage },
+        access,
+      });
+    });
+
     it('rejects invalid tokens.', async(): Promise<void> => {
       await expectInvalid(createRequest('invalid'), 'Invalid LWS access token: ');
       const token = await new SignJWT({ sub: subject, aud: storage, client_id: client })

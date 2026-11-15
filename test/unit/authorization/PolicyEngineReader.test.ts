@@ -24,6 +24,37 @@ describe('A PolicyEngineReader', (): void => {
     reader = new PolicyEngineReader(engine);
   });
 
+  it('forwards the LWS access claim fields to the policy engine.', async(): Promise<void> => {
+    requestedModes.add(identifier, PERMISSIONS.Read);
+    engine.getPermissions.mockResolvedValue({});
+    const access = [{ id: 'urn:policy' }];
+    const result = await reader.handle({
+      credentials: {
+        agent: { webId: 'https://id/alice' },
+        client: { clientId: 'https://app.example/id' },
+        issuer: { url: 'https://data.example/' },
+        access,
+        accessContext: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
+        storage: { path: 'https://data.example/' },
+      },
+      requestedModes,
+    });
+
+    expect(result.size).toBe(1);
+    expect(engine.getPermissions).toHaveBeenLastCalledWith(
+      identifier.path,
+      {
+        agent: 'https://id/alice',
+        client: 'https://app.example/id',
+        issuer: 'https://data.example/',
+        access,
+        accessContext: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
+        storage: 'https://data.example/',
+      },
+      [ PERMISSIONS.Read ],
+    );
+  });
+
   it('converts the returned permissions to access modes.', async(): Promise<void> => {
     requestedModes.add(identifier, PERMISSIONS.Modify);
     requestedModes.add(identifier2, PERMISSIONS.Read);

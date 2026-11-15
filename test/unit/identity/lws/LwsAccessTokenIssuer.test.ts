@@ -58,6 +58,19 @@ describe('An LwsAccessTokenIssuer', (): void => {
     });
   });
 
+  it('copies an access claim into the access token.', async(): Promise<void> => {
+    const claim = {
+      context: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
+      access: [{ id: 'urn:policy' }],
+    };
+    const token = await issuer.issue(subject, client, storage, claim);
+    const { payload } = await jwtVerify(token, await importJWK(await jwkGenerator.getPublicKey(), 'ES256'));
+    expect(payload).toMatchObject({
+      '@context': claim.context,
+      access: claim.access,
+    });
+  });
+
   it('verifies its own access tokens.', async(): Promise<void> => {
     const token = await issuer.issue(subject, client, storage);
     await expect(issuer.verify(token)).resolves.toEqual(decodeJwt(token));

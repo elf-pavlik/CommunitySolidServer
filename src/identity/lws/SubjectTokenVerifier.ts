@@ -37,6 +37,11 @@ export interface SubjectTokenVerifierInput {
    * Verifiers use this to check sender-constrained subject tokens, which have a `cnf` claim.
    */
   proofKeyThumbprint?: string;
+  /**
+   * The storage the token exchange is for (the `resource` parameter).
+   * A verifier can use this to bind a token-carried access claim to that storage.
+   */
+  resource?: string;
 }
 
 /**
@@ -55,6 +60,14 @@ export interface VerifiedSubject {
    * The LWS client identifier.
    */
   client: string;
+  /**
+   * An ODRL access claim carried by the subject token, in compact JSON-LD.
+   */
+  access?: unknown;
+  /**
+   * The JSON-LD context of {@link access}.
+   */
+  accessContext?: string;
 }
 
 /**

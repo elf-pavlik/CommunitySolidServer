@@ -144,11 +144,18 @@ export class LwsAccessTokenExtractor extends CredentialsExtractor {
       throw this.createError(`The LWS access token is not intended for the storage containing ${target.path}.`);
     }
 
-    const { sub, client_id: clientId, iss } = payload;
+    const { sub, client_id: clientId, iss, access } = payload;
     this.logger.info(`Verified LWS access token. Agent: ${sub}, client: ${String(clientId)}, issuer: ${iss}`);
     const credentials: Credentials = { agent: { webId: sub! }, issuer: { url: iss! }, storage: { path: audiences[0] }};
     if (typeof clientId === 'string') {
       credentials.client = { clientId };
+    }
+    if (access !== undefined) {
+      credentials.access = access;
+      const context = payload['@context'];
+      if (typeof context === 'string') {
+        credentials.accessContext = context;
+      }
     }
     return credentials;
   }

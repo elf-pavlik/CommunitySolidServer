@@ -94,7 +94,7 @@ describe('An LwsTokenHttpHandler', (): void => {
     expectHeaders(200);
     expect(verifier.handleSafe).toHaveBeenCalledTimes(1);
     expect(verifier.handleSafe)
-      .toHaveBeenLastCalledWith({ token: 'token', tokenType: TOKEN_TYPE_JWT, audience: 'https://as.example/' });
+      .toHaveBeenLastCalledWith({ token: 'token', tokenType: TOKEN_TYPE_JWT, audience: 'https://as.example/', resource: storage });
     expect(verifyDpopProof).toHaveBeenCalledTimes(0);
     expect(storageStrategy.getStorageIdentifier).toHaveBeenLastCalledWith({ path: storage });
     expect(resourceSet.hasResource).toHaveBeenLastCalledWith({ path: storage });
@@ -164,6 +164,30 @@ describe('An LwsTokenHttpHandler', (): void => {
     expect(verifier.handleSafe).toHaveBeenCalledTimes(0);
   });
 
+  it('copies a verified access claim into the access token.', async(): Promise<void> => {
+    const access = [ 'urn:policy' ];
+    verifier.handleSafe.mockResolvedValueOnce({
+      ...subject,
+      access,
+      accessContext: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
+    });
+    await expect(handle()).resolves.toMatchObject({ access_token: 'access-token' });
+    expect(issuer.issue).toHaveBeenLastCalledWith(subject.subject, subject.client, storage, {
+      context: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
+      access,
+    });
+  });
+
+  it('rejects an access claim without a JSON-LD context.', async(): Promise<void> => {
+    verifier.handleSafe.mockResolvedValueOnce({ ...subject, access: [ 'urn:policy' ]});
+    await expect(handle()).resolves.toEqual({
+      error: 'invalid_request',
+      error_description: 'The access claim of the subject token needs a JSON-LD context.',
+    });
+    expectHeaders(400);
+    expect(issuer.issue).toHaveBeenCalledTimes(0);
+  });
+
   it('rejects unsupported subject tokens.', async(): Promise<void> => {
     verifier.handleSafe.mockRejectedValueOnce(new NotImplementedHttpError('unknown type'));
     await expect(handle()).resolves.toEqual({
@@ -193,6 +217,7 @@ describe('An LwsTokenHttpHandler', (): void => {
       tokenType: TOKEN_TYPE_JWT,
       audience: 'https://as.example/',
       proofKeyThumbprint: 'thumbprint',
+      resource: storage,
     });
 
     handler = new LwsTokenHttpHandler({ issuer, verifier, storageStrategy, resourceSet, tokenPath: 'token' });

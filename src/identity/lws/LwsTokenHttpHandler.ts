@@ -131,7 +131,13 @@ export class LwsTokenHttpHandler extends HttpHandler {
 
     let subject: Awaited<ReturnType<SubjectTokenVerifier['handle']>>;
     try {
-      subject = await this.verifier.handleSafe({ token, tokenType, audience: this.issuer.issuer, proofKeyThumbprint });
+      subject = await this.verifier.handleSafe({
+        token,
+        tokenType,
+        audience: this.issuer.issuer,
+        proofKeyThumbprint,
+        resource,
+      });
     } catch (error: unknown) {
       if (NotImplementedHttpError.isInstance(error)) {
         throw new OAuthError('invalid_request', `Unsupported subject token: ${error.message}`);
@@ -139,7 +145,18 @@ export class LwsTokenHttpHandler extends HttpHandler {
       throw new OAuthError('invalid_request', `Invalid subject token: ${createErrorMessage(error)}`);
     }
 
-    const accessToken = await this.issuer.issue(subject.subject, subject.client, resource);
+    if (subject.access !== undefined && typeof subject.accessContext !== 'string') {
+      throw new OAuthError('invalid_request', 'The access claim of the subject token needs a JSON-LD context.');
+    }
+    let accessToken: string;
+    if (subject.access === undefined) {
+      accessToken = await this.issuer.issue(subject.subject, subject.client, resource);
+    } else {
+      accessToken = await this.issuer.issue(subject.subject, subject.client, resource, {
+        context: subject.accessContext!,
+        access: subject.access,
+      });
+    }
     this.logger.info(`Issued an access token for ${resource} to ${subject.subject} using client ${subject.client}`);
     return {
       access_token: accessToken,

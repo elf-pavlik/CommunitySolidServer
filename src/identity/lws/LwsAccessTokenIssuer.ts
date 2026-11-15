@@ -18,6 +18,16 @@ export type LwsAccessTokenClaims = JWTPayload & {
 };
 
 /**
+ * An ODRL access claim copied from a verified subject token into the access token.
+ */
+export interface LwsAccessClaim {
+  /** The JSON-LD context of the compact `access` claim. */
+  context: string;
+  /** Compact JSON-LD ODRL policies. */
+  access: unknown;
+}
+
+/**
  * Issues and verifies the access tokens of the LWS authorization server of this server.
  * Access tokens conform to the JSON Web Token Profile for OAuth 2.0 Access Tokens (RFC 9068),
  * and are signed with the key provided by the {@link JwkGenerator}.
@@ -61,12 +71,23 @@ export class LwsAccessTokenIssuer {
    * @param subject - The URI of the agent.
    * @param client - The URI of the client.
    * @param audience - The URI of the storage the token is intended for.
+   * @param claim - Optional verified ODRL access claim copied into the token.
    */
-  public async issue(subject: string, client: string, audience: string): Promise<string> {
+  public async issue(
+    subject: string,
+    client: string,
+    audience: string,
+    claim?: LwsAccessClaim,
+  ): Promise<string> {
     const privateJwk = await this.jwkGenerator.getPrivateKey();
     const key = await importJWK(privateJwk, this.jwkGenerator.alg);
     const kid = (await this.getPublicJwk()).kid;
-    return new SignJWT({ client_id: client })
+    const payload: JWTPayload = { client_id: client };
+    if (claim) {
+      payload['@context'] = claim.context;
+      payload.access = claim.access;
+    }
+    return new SignJWT(payload)
       .setProtectedHeader({ alg: this.jwkGenerator.alg, typ: 'at+jwt', kid })
       .setSubject(subject)
       .setIssuer(this.issuer)
