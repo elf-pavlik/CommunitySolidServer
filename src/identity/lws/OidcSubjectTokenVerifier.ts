@@ -15,7 +15,12 @@ import { LWS, SOLID } from '../../util/Vocabularies';
 import { arrayifyStream } from '../../util/StreamUtil';
 import { decodeUnverifiedJwt, verifyJwtCredential } from './JwtCredentialUtil';
 import type { SubjectTokenVerifierInput, VerifiedSubject } from './SubjectTokenVerifier';
-import { SubjectTokenVerifier, TOKEN_TYPE_ID_TOKEN, TOKEN_TYPE_ID_TOKEN_ALT } from './SubjectTokenVerifier';
+import {
+  SubjectTokenVerifier,
+  TOKEN_TYPE_ACCESS_TOKEN,
+  TOKEN_TYPE_ID_TOKEN,
+  TOKEN_TYPE_ID_TOKEN_ALT,
+} from './SubjectTokenVerifier';
 
 const CID_SERVICE = 'https://www.w3.org/ns/cid/v1#service';
 const CID_SERVICE_ENDPOINT = 'https://www.w3.org/ns/cid/v1#serviceEndpoint';
@@ -88,6 +93,11 @@ export function toClientUri(client: string, issuer: string): string {
  * from the authentication credential, and whose type value is equal to `https://www.w3.org/ns/lws#OpenIdProvider`.
  * The verifier MUST perform OpenID Connect Discovery to locate the public portion of the JSON Web Key (JWK)
  * used to sign the authentication credential."
+ *
+ * OpenID Connect access tokens of the same issuer are accepted as well (`…:access_token`),
+ * since they carry the same `iss`, `sub`, `webid` and `cnf` claims in Solid-OIDC deployments.
+ * They name their client with `client_id` instead of `azp`, and a restricted access token
+ * (`aud` equal to the authorization server) can be sender-constrained the same way.
  */
 export class OidcSubjectTokenVerifier extends SubjectTokenVerifier {
   protected readonly logger = getLoggerFor(this);
@@ -111,7 +121,9 @@ export class OidcSubjectTokenVerifier extends SubjectTokenVerifier {
   }
 
   public async canHandle({ tokenType }: SubjectTokenVerifierInput): Promise<void> {
-    if (tokenType !== TOKEN_TYPE_ID_TOKEN && tokenType !== TOKEN_TYPE_ID_TOKEN_ALT) {
+    if (tokenType !== TOKEN_TYPE_ID_TOKEN &&
+      tokenType !== TOKEN_TYPE_ID_TOKEN_ALT &&
+      tokenType !== TOKEN_TYPE_ACCESS_TOKEN) {
       throw new NotImplementedHttpError(`Unsupported token type ${tokenType}`);
     }
   }
@@ -119,12 +131,18 @@ export class OidcSubjectTokenVerifier extends SubjectTokenVerifier {
   public async handle({ token, audience, proofKeyThumbprint }: SubjectTokenVerifierInput): Promise<VerifiedSubject> {
     const claims = decodeUnverifiedJwt(token);
     const { iss, aud } = claims;
-    let { sub, azp } = claims;
+    let { sub } = claims;
     // Solid-OIDC ID tokens identify the agent with the webid claim, the sub claim does not need to be a URI
     if (this.acceptSolidOidcIssuer && typeof claims.webid === 'string' && !/^https?:\/\//u.test(String(sub))) {
       sub = claims.webid;
     }
-    // OpenID Connect only requires azp in case there are multiple audiences, otherwise the audience is the client
+    // Access tokens name the client with `client_id`, ID tokens with `azp`.
+    // OpenID Connect only requires `azp` in case there are multiple audiences,
+    // otherwise the audience is the client.
+    let azp = claims.azp;
+    if (azp === undefined && typeof claims.client_id === 'string') {
+      azp = claims.client_id;
+    }
     if (azp === undefined && (typeof aud === 'string' || (Array.isArray(aud) && aud.length === 1))) {
       azp = Array.isArray(aud) ? aud[0] : aud;
     }

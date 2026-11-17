@@ -63,6 +63,13 @@ export interface IdentityProviderFactoryArgs {
    */
   jwkGenerator: JwkGenerator;
   /**
+   * Value of the `aud` claim of the issued JWT access tokens.
+   * Defaults to `solid`, the audience Solid-OIDC resource servers expect.
+   * Deployments that use their access tokens as LWS authentication credentials
+   * can set this to the identifier of this server, so `aud` matches `iss`.
+   */
+  accessTokenAudience?: string;
+  /**
    * Extra information will be added to the error output if this is true.
    */
   showStackTrace: boolean;
@@ -97,6 +104,7 @@ export class IdentityProviderFactory implements ProviderFactory {
   private readonly clientCredentialsStore: ClientCredentialsStore;
   private readonly storage: KeyValueStorage<string, string[]>;
   private readonly jwkGenerator: JwkGenerator;
+  private readonly accessTokenAudience: string;
   private readonly showStackTrace: boolean;
   private readonly errorHandler: ErrorHandler;
   private readonly responseWriter: ResponseWriter;
@@ -118,6 +126,7 @@ export class IdentityProviderFactory implements ProviderFactory {
     this.clientCredentialsStore = args.clientCredentialsStore;
     this.storage = args.storage;
     this.jwkGenerator = args.jwkGenerator;
+    this.accessTokenAudience = args.accessTokenAudience ?? 'solid';
     this.showStackTrace = args.showStackTrace;
     this.errorHandler = args.errorHandler;
     this.responseWriter = args.responseWriter;
@@ -312,7 +321,9 @@ export class IdentityProviderFactory implements ProviderFactory {
           // The scopes of the Resource Server.
           // These get checked when requesting client credentials.
           scope: '',
-          audience: 'solid',
+          // Solid-OIDC resource servers expect `solid`; LWS deployments that use
+          // the access token as their authentication credential set their own identifier.
+          audience: this.accessTokenAudience,
           accessTokenFormat: 'jwt',
           jwt: {
             sign: { alg: jwtAlg },

@@ -3,6 +3,7 @@ import type { KeyLike } from 'jose';
 import { createRemoteJWKSet, generateKeyPair, SignJWT } from 'jose';
 import { OidcSubjectTokenVerifier, toClientUri } from '../../../../src/identity/lws/OidcSubjectTokenVerifier';
 import {
+  TOKEN_TYPE_ACCESS_TOKEN,
   TOKEN_TYPE_ID_TOKEN,
   TOKEN_TYPE_ID_TOKEN_ALT,
   TOKEN_TYPE_JWT,
@@ -79,10 +80,12 @@ describe('An OidcSubjectTokenVerifier', (): void => {
   });
 
   describe('#canHandle', (): void => {
-    it('accepts ID tokens.', async(): Promise<void> => {
+    it('accepts ID tokens and access tokens.', async(): Promise<void> => {
       await expect(verifier.canHandle({ token: 'token', tokenType: TOKEN_TYPE_ID_TOKEN, audience }))
         .resolves.toBeUndefined();
       await expect(verifier.canHandle({ token: 'token', tokenType: TOKEN_TYPE_ID_TOKEN_ALT, audience }))
+        .resolves.toBeUndefined();
+      await expect(verifier.canHandle({ token: 'token', tokenType: TOKEN_TYPE_ACCESS_TOKEN, audience }))
         .resolves.toBeUndefined();
     });
 
@@ -108,6 +111,30 @@ describe('An OidcSubjectTokenVerifier', (): void => {
         .resolves.toEqual({ subject, issuer, client });
       expect(fetchMock).toHaveBeenCalledTimes(3);
       expect(createRemoteJWKSetMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('verifies sender-constrained access tokens of the authorization server.', async(): Promise<void> => {
+      // A Solid-OIDC access token: `aud` is the authorization server, the client is named by `client_id`.
+      const token = await sign({
+        sub: subject,
+        webid: subject,
+        iss: issuer,
+        aud: audience,
+        client_id: client,
+        cnf: { jkt: 'thumbprint' },
+      });
+      await expect(verifier.handle({
+        token,
+        tokenType: TOKEN_TYPE_ACCESS_TOKEN,
+        audience,
+        proofKeyThumbprint: 'thumbprint',
+      })).resolves.toEqual({ subject, issuer, client });
+    });
+
+    it('uses the client_id claim as client if there is no azp claim.', async(): Promise<void> => {
+      const token = await sign({ sub: subject, iss: issuer, aud: audience, client_id: client });
+      await expect(verifier.handle({ token, tokenType: TOKEN_TYPE_ID_TOKEN, audience }))
+        .resolves.toEqual({ subject, issuer, client });
     });
 
     it('uses the audience as client if there is no azp claim.', async(): Promise<void> => {

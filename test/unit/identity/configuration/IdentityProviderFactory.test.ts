@@ -173,7 +173,6 @@ describe('An IdentityProviderFactory', (): void => {
       accessTokenFormat: 'jwt',
       jwt: { sign: { alg: 'ES256' }},
     });
-
     // Test the renderError function
     const error = new Error('error!');
     await expect((config.renderError as any)(ctx, {}, error)).resolves.toBeUndefined();
@@ -185,6 +184,27 @@ describe('An IdentityProviderFactory', (): void => {
 
     // Test that the Prompt was added
     expect(promptFactory.handleSafe).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses a configured audience for the access tokens.', async(): Promise<void> => {
+    factory = new IdentityProviderFactory(baseConfig, {
+      promptFactory,
+      adapterFactory,
+      baseUrl,
+      oidcPath,
+      interactionRoute,
+      storage,
+      jwkGenerator,
+      accessTokenAudience: baseUrl,
+      clientCredentialsStore,
+      showStackTrace: true,
+      errorHandler,
+      responseWriter,
+    });
+
+    const { config } = await factory.getProvider() as any;
+    expect((config.features?.resourceIndicators?.getResourceServerInfo)())
+      .toEqual(expect.objectContaining({ audience: baseUrl }));
   });
 
   it('copies a field from the input config if values need to be added to it.', async(): Promise<void> => {
