@@ -229,6 +229,20 @@ describe('An OidcSubjectTokenVerifier', (): void => {
         .rejects.toThrow('Only cnf claims with a jkt value are supported.');
     });
 
+    it('can require sender-constrained credentials.', async(): Promise<void> => {
+      verifier = new OidcSubjectTokenVerifier({ converter, requireSenderConstrained: true });
+      let token = await sign({ sub: subject, iss: issuer, aud: audience, azp: client });
+      await expect(verifier.handle({ token, tokenType: TOKEN_TYPE_ACCESS_TOKEN, audience }))
+        .rejects.toThrow('The token needs to be sender-constrained with a cnf claim.');
+      token = await sign({ sub: subject, iss: issuer, aud: audience, azp: client, cnf: { jkt: 'thumbprint' }});
+      await expect(verifier.handle({
+        token,
+        tokenType: TOKEN_TYPE_ACCESS_TOKEN,
+        audience,
+        proofKeyThumbprint: 'thumbprint',
+      })).resolves.toEqual({ subject, issuer, client });
+    });
+
     it('can require ID tokens to be restricted to the authorization server.', async(): Promise<void> => {
       verifier = new OidcSubjectTokenVerifier({ converter, requireRestrictedTokens: true });
       let token = await sign({ sub: subject, iss: issuer, aud: client, azp: client });

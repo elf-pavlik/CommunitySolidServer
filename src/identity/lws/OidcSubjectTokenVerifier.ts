@@ -62,6 +62,15 @@ export interface OidcSubjectTokenVerifierArgs {
    */
   requireRestrictedTokens?: boolean;
   /**
+   * Whether the credential has to be sender-constrained.
+   * In that case a token without a `cnf` claim is rejected, even if its
+   * audience includes this authorization server. This is what makes the first
+   * ID-JAG exchange use a DPoP-bound access token rather than a replayable
+   * bearer token.
+   * Defaults to false.
+   */
+  requireSenderConstrained?: boolean;
+  /**
    * Allowed clock skew in seconds. Defaults to 60.
    */
   clockTolerance?: number;
@@ -107,6 +116,7 @@ export class OidcSubjectTokenVerifier extends SubjectTokenVerifier {
   private readonly additionalAudiences: string[];
   private readonly acceptSolidOidcIssuer: boolean;
   private readonly requireRestrictedTokens: boolean;
+  private readonly requireSenderConstrained: boolean;
   private readonly clockTolerance: number;
   private readonly keySets = new Map<string, JWTVerifyGetKey>();
 
@@ -117,6 +127,7 @@ export class OidcSubjectTokenVerifier extends SubjectTokenVerifier {
     this.additionalAudiences = args.additionalAudiences ?? [];
     this.acceptSolidOidcIssuer = args.acceptSolidOidcIssuer ?? true;
     this.requireRestrictedTokens = args.requireRestrictedTokens ?? false;
+    this.requireSenderConstrained = args.requireSenderConstrained ?? false;
     this.clockTolerance = args.clockTolerance ?? 60;
   }
 
@@ -187,6 +198,9 @@ export class OidcSubjectTokenVerifier extends SubjectTokenVerifier {
         throw new BadRequestHttpError('The ID token is sender-constrained: a DPoP proof with its key is required.');
       }
       return;
+    }
+    if (this.requireSenderConstrained) {
+      throw new BadRequestHttpError('The token needs to be sender-constrained with a cnf claim.');
     }
     const audiences = Array.isArray(payload.aud) ? payload.aud : [ payload.aud ];
     if (this.requireRestrictedTokens && !audiences.includes(audience)) {

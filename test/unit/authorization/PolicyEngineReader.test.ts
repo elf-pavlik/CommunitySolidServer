@@ -36,6 +36,7 @@ describe('A PolicyEngineReader', (): void => {
         access,
         accessContext: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
         storage: { path: 'https://data.example/' },
+        scope: [ 'owner' ],
       },
       requestedModes,
     });
@@ -50,6 +51,7 @@ describe('A PolicyEngineReader', (): void => {
         access,
         accessContext: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
         storage: 'https://data.example/',
+        scope: [ 'owner' ],
       },
       [ PERMISSIONS.Read ],
     );

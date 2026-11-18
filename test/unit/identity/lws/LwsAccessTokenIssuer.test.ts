@@ -73,6 +73,21 @@ describe('An LwsAccessTokenIssuer', (): void => {
     });
   });
 
+  it('mints a storage scope in the access token.', async(): Promise<void> => {
+    const token = await issuer.issue(subject, client, storage, undefined, [ 'owner' ]);
+    const { payload } = await jwtVerify(token, await importJWK(await jwkGenerator.getPublicKey(), 'ES256'));
+    expect(payload.scope).toBe('owner');
+  });
+
+  it('does not combine a claim and a scope.', async(): Promise<void> => {
+    const claim = {
+      context: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
+      access: [{ id: 'urn:policy' }],
+    };
+    await expect(issuer.issue(subject, client, storage, claim, [ 'admin' ]))
+      .rejects.toThrow('An access token can carry an access claim or a scope, not both.');
+  });
+
   it('verifies its own access tokens.', async(): Promise<void> => {
     const token = await issuer.issue(subject, client, storage);
     await expect(issuer.verify(token)).resolves.toEqual(decodeJwt(token));

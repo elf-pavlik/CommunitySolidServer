@@ -143,6 +143,17 @@ describe('An LwsAccessTokenExtractor', (): void => {
       });
     });
 
+    it('returns the scope of a token issued by this server.', async(): Promise<void> => {
+      const token = await issuer.issue(subject, client, storage, undefined, [ 'owner' ]);
+      await expect(extractor.handle(createRequest(token))).resolves.toEqual({
+        agent: { webId: subject },
+        client: { clientId: client },
+        issuer: { url: 'https://storage.example/' },
+        storage: { path: storage },
+        scope: [ 'owner' ],
+      });
+    });
+
     it('rejects invalid tokens.', async(): Promise<void> => {
       await expectInvalid(createRequest('invalid'), 'Invalid LWS access token: ');
       const token = await new SignJWT({ sub: subject, aud: storage, client_id: client })
@@ -268,6 +279,16 @@ describe('An LwsAccessTokenExtractor', (): void => {
         });
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(createRemoteJWKSetMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not expose a scope minted by a trusted external issuer.', async(): Promise<void> => {
+        const token = await signExternal({ client_id: client, scope: 'owner' });
+        await expect(extractor.handle(createRequest(token))).resolves.toEqual({
+          agent: { webId: subject },
+          client: { clientId: client },
+          issuer: { url: externalIssuer },
+          storage: { path: storage },
+        });
       });
 
       it('rejects tokens of trusted issuers with an invalid signature.', async(): Promise<void> => {

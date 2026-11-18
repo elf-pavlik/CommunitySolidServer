@@ -144,7 +144,7 @@ export class LwsAccessTokenExtractor extends CredentialsExtractor {
       throw this.createError(`The LWS access token is not intended for the storage containing ${target.path}.`);
     }
 
-    const { sub, client_id: clientId, iss, access } = payload;
+    const { sub, client_id: clientId, iss, access, scope } = payload;
     this.logger.info(`Verified LWS access token. Agent: ${sub}, client: ${String(clientId)}, issuer: ${iss}`);
     const credentials: Credentials = { agent: { webId: sub! }, issuer: { url: iss! }, storage: { path: audiences[0] }};
     if (typeof clientId === 'string') {
@@ -159,6 +159,12 @@ export class LwsAccessTokenExtractor extends CredentialsExtractor {
       if (payload.act !== undefined) {
         credentials.act = payload.act;
       }
+    }
+    // `scope: owner`/`admin` is this server's own exchange authority. A token
+    // from a trusted external issuer must not be able to mint it, so only
+    // tokens this issuer signed expose a scope to the permission readers.
+    if (iss === this.issuer.issuer && typeof scope === 'string' && scope.length > 0) {
+      credentials.scope = scope.split(' ').filter((value): boolean => value.length > 0);
     }
     return credentials;
   }

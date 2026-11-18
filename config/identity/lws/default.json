@@ -69,6 +69,7 @@
           "allowedMethods": [ "POST" ],
           "allowedPathNames": [ "^/\\.well-known/lws/token$" ],
           "handler": {
+            "@id": "urn:solid-server:default:LwsTokenHttpHandler",
             "@type": "LwsTokenHttpHandler",
             "issuer": { "@id": "urn:solid-server:default:LwsAccessTokenIssuer" },
             "verifier": { "@id": "urn:solid-server:default:SubjectTokenVerifier" },

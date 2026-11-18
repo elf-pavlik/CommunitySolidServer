@@ -1,7 +1,12 @@
 import { createResponse } from 'node-mocks-http';
 import type { MockResponse } from 'node-mocks-http';
 import type { LwsAccessTokenIssuer } from '../../../../src/identity/lws/LwsAccessTokenIssuer';
-import { GRANT_TYPE_TOKEN_EXCHANGE, LwsTokenHttpHandler } from '../../../../src/identity/lws/LwsTokenHttpHandler';
+import {
+  GRANT_TYPE_TOKEN_EXCHANGE,
+  LwsExchangeAccessDeniedError,
+  LwsTokenHttpHandler,
+} from '../../../../src/identity/lws/LwsTokenHttpHandler';
+import type { LwsTokenExchangePolicy } from '../../../../src/identity/lws/LwsTokenHttpHandler';
 import type { SubjectTokenVerifier } from '../../../../src/identity/lws/SubjectTokenVerifier';
 import { TOKEN_TYPE_JWT } from '../../../../src/identity/lws/SubjectTokenVerifier';
 import type { StorageLocationStrategy } from '../../../../src/server/description/StorageLocationStrategy';
@@ -98,7 +103,7 @@ describe('An LwsTokenHttpHandler', (): void => {
     expect(verifyDpopProof).toHaveBeenCalledTimes(0);
     expect(storageStrategy.getStorageIdentifier).toHaveBeenLastCalledWith({ path: storage });
     expect(resourceSet.hasResource).toHaveBeenLastCalledWith({ path: storage });
-    expect(issuer.issue).toHaveBeenLastCalledWith(subject.subject, subject.client, storage);
+    expect(issuer.issue).toHaveBeenLastCalledWith(subject.subject, subject.client, storage, undefined, undefined);
   });
 
   it('requires a form encoded body.', async(): Promise<void> => {
@@ -178,7 +183,7 @@ describe('An LwsTokenHttpHandler', (): void => {
       context: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
       access,
       act,
-    });
+    }, undefined);
   });
 
   it('does not add an actor chain when the subject token has none.', async(): Promise<void> => {
@@ -192,7 +197,81 @@ describe('An LwsTokenHttpHandler', (): void => {
     expect(issuer.issue).toHaveBeenLastCalledWith(subject.subject, subject.client, storage, {
       context: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
       access,
+    }, undefined);
+  });
+
+  it('mints a storage scope from the exchange policy for a claimless token.', async(): Promise<void> => {
+    const policy = {
+      determineScope: jest.fn().mockResolvedValue([ 'owner' ]),
+    } as unknown as LwsTokenExchangePolicy;
+    handler = new LwsTokenHttpHandler({ issuer, verifier, storageStrategy, resourceSet, accessPolicy: policy });
+    await expect(handle()).resolves.toMatchObject({ access_token: 'access-token' });
+    expect(policy.determineScope).toHaveBeenLastCalledWith({
+      subject: subject.subject,
+      client: subject.client,
+      issuer: subject.issuer,
+      resource: storage,
     });
+    expect(issuer.issue).toHaveBeenLastCalledWith(subject.subject, subject.client, storage, undefined, [ 'owner' ]);
+  });
+
+  it('lets a claim win over the exchange policy.', async(): Promise<void> => {
+    const access = [ 'urn:policy' ];
+    verifier.handleSafe.mockResolvedValueOnce({
+      ...subject,
+      access,
+      accessContext: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
+    });
+    const policy = {
+      determineScope: jest.fn().mockResolvedValue([ 'owner' ]),
+    } as unknown as LwsTokenExchangePolicy;
+    handler = new LwsTokenHttpHandler({ issuer, verifier, storageStrategy, resourceSet, accessPolicy: policy });
+    await expect(handle()).resolves.toMatchObject({ access_token: 'access-token' });
+    expect(policy.determineScope).toHaveBeenCalledTimes(0);
+    expect(issuer.issue).toHaveBeenLastCalledWith(subject.subject, subject.client, storage, {
+      context: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
+      access,
+    }, undefined);
+  });
+
+  it('maps an exchange policy denial to invalid_grant.', async(): Promise<void> => {
+    const policy = {
+      determineScope: jest.fn().mockRejectedValue(new LwsExchangeAccessDeniedError('no authority')),
+    } as unknown as LwsTokenExchangePolicy;
+    handler = new LwsTokenHttpHandler({ issuer, verifier, storageStrategy, resourceSet, accessPolicy: policy });
+    await expect(handle()).resolves.toEqual({
+      error: 'invalid_grant',
+      error_description: 'no authority',
+    });
+    expectHeaders(400);
+    expect(issuer.issue).toHaveBeenCalledTimes(0);
+  });
+
+  it('rethrows unexpected access policy errors.', async(): Promise<void> => {
+    const error = new Error('grant store unavailable');
+    const policy = {
+      determineScope: jest.fn().mockRejectedValue(error),
+    } as unknown as LwsTokenExchangePolicy;
+    handler = new LwsTokenHttpHandler({ issuer, verifier, storageStrategy, resourceSet, accessPolicy: policy });
+    await expect(handler.handle({ request: createRequest(new URLSearchParams(params).toString()), response }))
+      .rejects.toBe(error);
+  });
+
+  it('does not copy an access claim when copyAccessClaim is false.', async(): Promise<void> => {
+    verifier.handleSafe.mockResolvedValueOnce({
+      ...subject,
+      access: [ 'urn:policy' ],
+      accessContext: 'https://www.w3.org/ns/solid/interop-context/v1/odrl-id-jag-context',
+    });
+    handler = new LwsTokenHttpHandler({
+      issuer,
+      verifier,
+      storageStrategy,
+      resourceSet,
+      copyAccessClaim: false,
+    });
+    await expect(handle()).resolves.toMatchObject({ access_token: 'access-token' });
+    expect(issuer.issue).toHaveBeenLastCalledWith(subject.subject, subject.client, storage, undefined, undefined);
   });
 
   it('rejects an access claim without a JSON-LD context.', async(): Promise<void> => {

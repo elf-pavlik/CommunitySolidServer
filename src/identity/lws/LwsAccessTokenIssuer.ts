@@ -15,6 +15,11 @@ export type LwsAccessTokenClaims = JWTPayload & {
   exp: number;
   iat: number;
   jti: string;
+  /**
+   * Authority minted by the authorization server itself for this storage.
+   * A data storage understands `owner` (all modes) and `admin` (read-only).
+   */
+  scope?: string;
 };
 
 /**
@@ -74,13 +79,20 @@ export class LwsAccessTokenIssuer {
    * @param client - The URI of the client.
    * @param audience - The URI of the storage the token is intended for.
    * @param claim - Optional verified ODRL access claim copied into the token.
+   * @param scope - Optional storage authorization scope (`owner`, `admin`).
+   *                A claim and a scope are mutually exclusive: the claim is the
+   *                narrower authority and always wins.
    */
   public async issue(
     subject: string,
     client: string,
     audience: string,
     claim?: LwsAccessClaim,
+    scope?: string[],
   ): Promise<string> {
+    if (claim && scope && scope.length > 0) {
+      throw new Error('An access token can carry an access claim or a scope, not both.');
+    }
     const privateJwk = await this.jwkGenerator.getPrivateKey();
     const key = await importJWK(privateJwk, this.jwkGenerator.alg);
     const kid = (await this.getPublicJwk()).kid;
@@ -91,6 +103,9 @@ export class LwsAccessTokenIssuer {
       if (claim.act !== undefined) {
         payload.act = claim.act;
       }
+    } else if (scope && scope.length > 0) {
+      // OAuth 2.0, §3.3: `scope` is a space-delimited string.
+      payload.scope = scope.join(' ');
     }
     return new SignJWT(payload)
       .setProtectedHeader({ alg: this.jwkGenerator.alg, typ: 'at+jwt', kid })

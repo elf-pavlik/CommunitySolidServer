@@ -13,7 +13,7 @@ import { parseContentType } from '../../util/HeaderUtil';
 import { joinUrl } from '../../util/PathUtil';
 import { readableToString } from '../../util/StreamUtil';
 import { verifyDpopProof } from './DpopUtil';
-import type { LwsAccessTokenIssuer } from './LwsAccessTokenIssuer';
+import type { LwsAccessClaim, LwsAccessTokenIssuer } from './LwsAccessTokenIssuer';
 import type { SubjectTokenVerifier } from './SubjectTokenVerifier';
 
 /**
@@ -36,6 +36,44 @@ class OAuthError extends Error {
 /**
  * Arguments for the {@link LwsTokenHttpHandler}.
  */
+/**
+ * The input of a storage-specific exchange access policy.
+ *
+ * The policy only runs when the verified subject token carries no ODRL access
+ * claim. It decides whether this authorization server may mint a `scope` for
+ * the exchange (for example `owner` or `admin` on a data storage).
+ */
+export interface LwsTokenExchangePolicyInput {
+  /** The subject (`sub`) of the verified subject token. */
+  subject: string;
+  /** The client (`client_id`) of the verified subject token. */
+  client: string;
+  /** The issuer of the verified subject token. */
+  issuer: string;
+  /** The storage the access token is requested for (the `resource` parameter). */
+  resource: string;
+}
+
+/**
+ * Decides whether a claimless token exchange gets a storage `scope`.
+ *
+ * Implementations throw {@link LwsExchangeAccessDeniedError} when the exchange
+ * has no authority at all; the handler turns that into `invalid_grant`.
+ */
+export abstract class LwsTokenExchangePolicy {
+  public abstract determineScope(input: LwsTokenExchangePolicyInput): Promise<string[] | undefined>;
+}
+
+/**
+ * A claimless exchange that the storage access policy does not allow.
+ * Maps to the OAuth `invalid_grant` error, not a malformed request.
+ */
+export class LwsExchangeAccessDeniedError extends Error {
+  public static isInstance(error: unknown): error is LwsExchangeAccessDeniedError {
+    return error instanceof LwsExchangeAccessDeniedError;
+  }
+}
+
 export interface LwsTokenHttpHandlerArgs {
   /**
    * Issues the access tokens.
@@ -58,6 +96,19 @@ export interface LwsTokenHttpHandlerArgs {
    * Used to verify the `htu` claim of DPoP proofs. Defaults to `.well-known/lws/token`.
    */
   tokenPath?: string;
+  /**
+   * Optional policy that mints a storage `scope` for a claimless exchange and
+   * rejects an exchange that has neither a claim nor an allowed scope.
+   * Without a policy, a claimless exchange is issued without a scope (the
+   * registry server relies on ACP for authorization).
+   */
+  accessPolicy?: LwsTokenExchangePolicy;
+  /**
+   * Whether a verified access claim is copied into the access token.
+   * Defaults to true. The registry server sets this to false because ACP
+   * authorizes registry resources and a claim is neither required nor used.
+   */
+  copyAccessClaim?: boolean;
 }
 
 /**
@@ -86,6 +137,8 @@ export class LwsTokenHttpHandler extends HttpHandler {
   private readonly storageStrategy: StorageLocationStrategy;
   private readonly resourceSet: ResourceSet;
   private readonly tokenEndpoint: string;
+  private readonly accessPolicy?: LwsTokenExchangePolicy;
+  private readonly copyAccessClaim: boolean;
 
   public constructor(args: LwsTokenHttpHandlerArgs) {
     super();
@@ -94,6 +147,8 @@ export class LwsTokenHttpHandler extends HttpHandler {
     this.storageStrategy = args.storageStrategy;
     this.resourceSet = args.resourceSet;
     this.tokenEndpoint = joinUrl(this.issuer.issuer, args.tokenPath ?? '.well-known/lws/token');
+    this.accessPolicy = args.accessPolicy;
+    this.copyAccessClaim = args.copyAccessClaim ?? true;
   }
 
   public async handle({ request, response }: HttpHandlerInput): Promise<void> {
@@ -145,19 +200,44 @@ export class LwsTokenHttpHandler extends HttpHandler {
       throw new OAuthError('invalid_request', `Invalid subject token: ${createErrorMessage(error)}`);
     }
 
-    if (subject.access !== undefined && typeof subject.accessContext !== 'string') {
-      throw new OAuthError('invalid_request', 'The access claim of the subject token needs a JSON-LD context.');
+    let claim: LwsAccessClaim | undefined;
+    if (subject.access !== undefined) {
+      if (typeof subject.accessContext !== 'string') {
+        throw new OAuthError('invalid_request', 'The access claim of the subject token needs a JSON-LD context.');
+      }
+      if (this.copyAccessClaim) {
+        claim = {
+          context: subject.accessContext,
+          access: subject.access,
+          ...subject.act === undefined ? {} : { act: subject.act },
+        };
+      }
     }
-    let accessToken: string;
-    if (subject.access === undefined) {
-      accessToken = await this.issuer.issue(subject.subject, subject.client, resource);
-    } else {
-      accessToken = await this.issuer.issue(subject.subject, subject.client, resource, {
-        context: subject.accessContext!,
-        access: subject.access,
-        ...subject.act === undefined ? {} : { act: subject.act },
-      });
+
+    let scope: string[] | undefined;
+    if (claim === undefined && this.accessPolicy) {
+      try {
+        scope = await this.accessPolicy.determineScope({
+          subject: subject.subject,
+          client: subject.client,
+          issuer: subject.issuer,
+          resource,
+        });
+      } catch (error: unknown) {
+        if (LwsExchangeAccessDeniedError.isInstance(error)) {
+          throw new OAuthError('invalid_grant', error.message);
+        }
+        throw error;
+      }
     }
+
+    const accessToken = await this.issuer.issue(
+      subject.subject,
+      subject.client,
+      resource,
+      claim,
+      scope,
+    );
     this.logger.info(`Issued an access token for ${resource} to ${subject.subject} using client ${subject.client}`);
     return {
       access_token: accessToken,

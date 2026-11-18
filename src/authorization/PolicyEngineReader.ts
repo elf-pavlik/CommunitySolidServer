@@ -9,6 +9,7 @@ type LwsCredentials = Credentials & {
   access?: unknown;
   accessContext?: string;
   storage?: string;
+  scope?: string[];
 };
 
 /**
@@ -35,6 +36,10 @@ export class PolicyEngineReader extends PermissionReader {
     }
     if (typeof input.credentials.accessContext === 'string') {
       credentials.accessContext = input.credentials.accessContext;
+    }
+    if (Array.isArray(input.credentials.scope) &&
+      input.credentials.scope.every((value): boolean => typeof value === 'string')) {
+      credentials.scope = input.credentials.scope;
     }
     if (input.credentials.storage !== undefined) {
       credentials.storage = (input.credentials.storage as { path: string }).path;
